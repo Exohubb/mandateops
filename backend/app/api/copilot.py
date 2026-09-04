@@ -69,5 +69,8 @@ async def _build_grounded_context(conn, batch_id: str) -> dict:
 async def ask(request: CopilotQuestionRequest):
     conn = get_db()
     context = await _build_grounded_context(conn, request.batch_id)
-    result = await ask_copilot(question=request.question, grounded_context=context)
+    history = [turn.model_dump() for turn in request.history]
+    result = await ask_copilot(
+        question=request.question, grounded_context=context, history=history
+    )
     return result

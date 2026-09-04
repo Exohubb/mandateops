@@ -59,10 +59,14 @@ export const api = {
   verifyChain: (batchId: string) =>
     request<VerifyChainResult>(`/api/audit/${batchId}/verify`, { method: "POST" }),
 
-  askCopilot: (batchId: string, question: string) =>
+  askCopilot: (
+    batchId: string,
+    question: string,
+    history: { role: "user" | "nira"; text: string }[] = []
+  ) =>
     request<CopilotAnswer>("/api/copilot/ask", {
       method: "POST",
-      body: JSON.stringify({ batch_id: batchId, question }),
+      body: JSON.stringify({ batch_id: batchId, question, history }),
     }),
 
   getHeatmap: (declineCategory: string) =>

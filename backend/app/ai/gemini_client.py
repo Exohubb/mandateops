@@ -290,17 +290,44 @@ async def compose_message(
 # --- Job 3: grounded AI Copilot chat ---------------------------------------
 
 
-async def ask_copilot(*, question: str, grounded_context: dict) -> dict:
+_NO_ANSWER_PHRASE = "i don't have that in this run's data"
+
+
+def _is_ungrounded(text: str) -> bool:
+    """True only if the ENTIRE answer is, in substance, just the "I don't
+    have that" disclaimer — not merely if that phrase appears anywhere in
+    the response. A real answer that adds a caveat like "...but I don't
+    have that for the second part" still contains genuine, grounded
+    content and must not be thrown away by a naive substring check.
+    """
+    lower = text.strip().lower()
+    if not lower:
+        return True
+    return lower == _NO_ANSWER_PHRASE or lower == f"{_NO_ANSWER_PHRASE}." or lower.startswith(_NO_ANSWER_PHRASE)
+
+
+async def ask_copilot(
+    *, question: str, grounded_context: dict, history: list[dict] | None = None
+) -> dict:
     """Answer a user's question about the CURRENT batch run only, grounded
     strictly in `grounded_context` (rows/aggregates the caller retrieved
     from SQLite before calling this function — never Gemini's own memory).
 
+    `history` is an optional list of `{"role": "user"|"nira", "text": str}`
+    prior turns from THIS chat session, supplied by the caller (the
+    frontend already holds it — nothing is persisted server-side). It lets
+    short follow-ups like "why?" or "see it" resolve against what was just
+    discussed, instead of being answered in a vacuum every time.
+
     Returns {"answer": str, "grounded": bool, "used_fallback": bool}.
-    `grounded` is False if Nira explicitly said she doesn't have the answer
-    in the provided data — surfaced by the frontend rather than hidden.
+    `grounded` is False only if Nira's answer is, in substance, entirely
+    the "I don't have that" disclaimer — surfaced by the frontend rather
+    than hidden.
     """
+    history = history or []
     context_json = json.dumps(grounded_context, default=str, sort_keys=True)
-    cache_key = content_hash("ask_copilot", question, context_json)
+    history_json = json.dumps(history, sort_keys=True)
+    cache_key = content_hash("ask_copilot", question, context_json, history_json)
     cached = ai_cache.get(cache_key)
     if cached is not None:
         return json.loads(cached)
@@ -316,6 +343,20 @@ async def ask_copilot(*, question: str, grounded_context: dict) -> dict:
     }
 
     try:
+        transcript = ""
+        if history:
+            lines = [
+                f"{'User' if turn.get('role') == 'user' else 'Nira'}: {turn.get('text', '')}"
+                for turn in history
+            ]
+            transcript = (
+                "Earlier in this same conversation (for context on follow-up "
+                "questions like \"why\" or \"what about that\" — do not repeat "
+                "this back, just use it to understand what's being asked):\n"
+                + "\n".join(lines)
+                + "\n\n"
+            )
+
         prompt = (
             "Answer the user's question using ONLY the JSON data below, "
             "which describes the current batch run. Answer in 1-3 short "
@@ -323,6 +364,7 @@ async def ask_copilot(*, question: str, grounded_context: dict) -> dict:
             "is not contained in this data, say exactly: \"I don't have "
             "that in this run's data.\"\n\n"
             f"DATA:\n{context_json}\n\n"
+            f"{transcript}"
             f"QUESTION: {question}"
         )
         response = await _generate_with_fallback_chain(
@@ -333,7 +375,7 @@ async def ask_copilot(*, question: str, grounded_context: dict) -> dict:
             ),
         )
         text = (response.text or "").strip()
-        grounded = "i don't have that in this run's data" not in text.lower()
+        grounded = not _is_ungrounded(text)
         result = {"answer": text, "grounded": grounded, "used_fallback": False}
         ai_cache.set(cache_key, json.dumps(result))
         return result

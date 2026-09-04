@@ -76,7 +76,15 @@ export function CopilotPage() {
   const configured = healthQuery.data?.gemini_configured;
 
   const askMutation = useMutation({
-    mutationFn: (question: string) => api.askCopilot(batchId!, question),
+    mutationFn: ({ question, history }: { question: string; history: ChatMessage[] }) =>
+      api.askCopilot(
+        batchId!,
+        question,
+        // Cap to the last 12 turns (matches the backend's limit) so a long
+        // chat doesn't balloon the prompt — recent context is what matters
+        // for resolving a short follow-up anyway.
+        history.slice(-12).map((m) => ({ role: m.role, text: m.text }))
+      ),
     onSuccess: (data) => {
       setMessages((prev) => [
         ...prev,
@@ -98,8 +106,9 @@ export function CopilotPage() {
 
   function send(question: string) {
     if (!question.trim() || !batchId) return;
+    const history = messages;
     setMessages((prev) => [...prev, { role: "user", text: question }]);
-    askMutation.mutate(question);
+    askMutation.mutate({ question, history });
     setInput("");
   }
 
