@@ -120,6 +120,46 @@ async def test_audit_events_across_multiple_append_calls_stay_chained(test_db):
     assert bad_sequence is None
 
 
+async def test_delete_batch_run_removes_all_related_rows(test_db):
+    records = generate_cohort(n=20, seed=13)
+    result = run_naive(records, seed=13)
+    decline_texts = {r.mandate.id: r.initial_decline_text for r in records}
+    classified_by = {r.mandate.id: "fallback_rule_engine" for r in records}
+    names = {r.mandate.id: r.mandate.subscriber_name for r in records}
+
+    await repository.create_batch_run(test_db, batch_id="b8", cohort_size=20, seed=13)
+    await repository.save_outcomes(
+        test_db,
+        batch_id="b8",
+        strategy="naive",
+        outcomes=result.outcomes,
+        decline_texts=decline_texts,
+        classified_by=classified_by,
+        subscriber_names=names,
+    )
+    await repository.save_simulation_events(
+        test_db, batch_id="b8", strategy="naive", events=result.events
+    )
+    await repository.append_audit_events(
+        test_db,
+        batch_id="b8",
+        entries=[{"actor_layer": "deterministic", "event_type": "X", "mandate_id": None, "cycle_id": None, "detail": {}}],
+    )
+
+    deleted = await repository.delete_batch_run(test_db, "b8")
+    assert deleted is True
+
+    assert await repository.get_batch_run(test_db, "b8") is None
+    assert await repository.get_outcomes(test_db, batch_id="b8", strategy="naive") == []
+    assert await repository.get_simulation_events(test_db, batch_id="b8") == []
+    assert await repository.get_audit_events(test_db, "b8") == []
+
+
+async def test_delete_batch_run_returns_false_for_unknown_id(test_db):
+    deleted = await repository.delete_batch_run(test_db, "does-not-exist")
+    assert deleted is False
+
+
 async def test_tampering_persisted_audit_row_is_detected(test_db):
     entries = [
         {"actor_layer": "deterministic", "event_type": "A", "mandate_id": None, "cycle_id": None, "detail": {"n": i}}

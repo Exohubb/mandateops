@@ -81,9 +81,9 @@ export function Sidebar() {
       </nav>
 
       <div className="border-t border-border px-5 py-4 text-[11px] text-text-muted">
-        Built by the team behind{" "}
-        <span className="text-text-secondary">AutoPay</span> — 740+ users in
-        20 days on Play Store.
+        Also shipped{" "}
+        <span className="text-text-secondary">AutoPay</span> — a
+        consumer-side UPI mandate manager, 740+ users in 20 days.
       </div>
     </aside>
   );

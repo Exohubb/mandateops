@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { AlertTriangle, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { AlertTriangle, Sparkles, Trash2 } from "lucide-react";
 import { api } from "../lib/api";
 import { ComparisonHero } from "../components/dashboard/ComparisonHero";
 import { AttemptsChart } from "../components/dashboard/AttemptsChart";
@@ -10,9 +10,26 @@ import { RunControlBar } from "../components/dashboard/RunControlBar";
 import { EventFeed } from "../components/dashboard/EventFeed";
 import { Card, CardHeader, CardTitle } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
+import { loadFromCache, saveToCache } from "../lib/sessionCache";
+
+// The currently-viewed batch id is cached so navigating away to another
+// tab and back keeps showing the same run instead of resetting to the
+// empty state — the batch DATA itself already lives permanently in
+// SQLite, this just remembers "which one was I looking at."
+const SELECTED_BATCH_CACHE_KEY = "mandateops-selected-batch-id";
+const SELECTED_BATCH_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
 
 export function DashboardPage() {
-  const [batchId, setBatchId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const [batchId, setBatchId] = useState<string | null>(() =>
+    loadFromCache<string>(SELECTED_BATCH_CACHE_KEY)
+  );
+
+  useEffect(() => {
+    if (batchId) {
+      saveToCache(SELECTED_BATCH_CACHE_KEY, batchId, SELECTED_BATCH_TTL_MS);
+    }
+  }, [batchId]);
 
   const runMutation = useMutation({
     mutationFn: ({ cohortSize, seed }: { cohortSize: number; seed: number }) =>
@@ -20,11 +37,35 @@ export function DashboardPage() {
     onSuccess: (data) => setBatchId(data.batch_id),
   });
 
+  const batchesListQuery = useQuery({
+    queryKey: ["batches-list"],
+    queryFn: () => api.listBatches(20),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.deleteBatch(id),
+    onSuccess: (_data, deletedId) => {
+      queryClient.invalidateQueries({ queryKey: ["batches-list"] });
+      if (batchId === deletedId) {
+        setBatchId(null);
+      }
+    },
+  });
+
   const batchQuery = useQuery({
     queryKey: ["batch", batchId],
     queryFn: () => api.getBatch(batchId!),
     enabled: !!batchId,
+    retry: false,
   });
+
+  // If the cached batch id points at a run that's since been deleted (404),
+  // fall back to the empty state instead of showing a permanent error.
+  useEffect(() => {
+    if (batchQuery.isError && batchId) {
+      setBatchId(null);
+    }
+  }, [batchQuery.isError, batchId]);
 
   const outcomesQuery = useQuery({
     queryKey: ["outcomes", batchId, "mandateops"],
@@ -55,6 +96,42 @@ export function DashboardPage() {
         onRun={(cohortSize, seed) => runMutation.mutate({ cohortSize, seed })}
         isRunning={runMutation.isPending}
       />
+
+      {batchesListQuery.data && batchesListQuery.data.length > 0 && (
+        <Card delay={0.02}>
+          <CardHeader>
+            <CardTitle>Previous Simulations</CardTitle>
+          </CardHeader>
+          <div className="flex flex-wrap gap-2">
+            {batchesListQuery.data.map((b) => (
+              <div
+                key={b.id}
+                className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs transition-colors ${
+                  b.id === batchId
+                    ? "border-ai-500/50 bg-ai-500/10 text-ai-400"
+                    : "border-border text-text-secondary hover:bg-surface-hover"
+                }`}
+              >
+                <button
+                  onClick={() => setBatchId(b.id)}
+                  className="font-mono-num"
+                  title={`Cohort size ${b.cohort_size}, seed ${b.seed}`}
+                >
+                  {b.id.replace("batch-", "")}
+                </button>
+                <button
+                  onClick={() => deleteMutation.mutate(b.id)}
+                  disabled={deleteMutation.isPending}
+                  className="text-text-muted transition-colors hover:text-danger-500 disabled:opacity-50"
+                  title="Delete this simulation"
+                >
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {runMutation.isError && (
         <Card className="flex items-center gap-2 border-danger-500/30 text-danger-400">

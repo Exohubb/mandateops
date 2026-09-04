@@ -160,6 +160,27 @@ code,
   text-decoration-color: currentColor;
 }
 
+/* Cursor-following ambient glow — a soft blue/green blurred blob. Kept at
+   low opacity and heavily blurred so it reads as atmosphere, not a UI
+   element competing for attention. Tuned separately per theme since a
+   glow that looks right on near-black needs to be much more transparent
+   on a light background or it just looks like a stain. */
+.cursor-glow-blob {
+  border-radius: 9999px;
+  filter: blur(90px);
+  will-change: transform;
+  background: radial-gradient(
+    circle at 35% 35%,
+    color-mix(in srgb, #3b82f6 55%, transparent) 0%,
+    color-mix(in srgb, #22c55e 45%, transparent) 45%,
+    transparent 72%
+  );
+  opacity: 0.16;
+}
+.dark .cursor-glow-blob {
+  opacity: 0.22;
+}
+
 /* Subtle grid background used behind the hero section. Applied to a
    ::before pseudo-element rather than the section itself, so the fade
    mask only affects the decorative grid layer — never the title text

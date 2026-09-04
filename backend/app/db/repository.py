@@ -78,6 +78,24 @@ async def list_batch_runs(conn: aiosqlite.Connection, limit: int = 20) -> list[d
     return [dict(r) for r in rows]
 
 
+async def delete_batch_run(conn: aiosqlite.Connection, batch_id: str) -> bool:
+    """Delete a batch run and every row derived from it (outcomes,
+    simulation events, audit events) across all four tables. Returns True
+    if a batch with this id existed and was deleted, False otherwise.
+    """
+    cursor = await conn.execute("SELECT 1 FROM batch_runs WHERE id = ?", (batch_id,))
+    exists = await cursor.fetchone()
+    if exists is None:
+        return False
+
+    await conn.execute("DELETE FROM mandate_outcomes WHERE batch_id = ?", (batch_id,))
+    await conn.execute("DELETE FROM simulation_events WHERE batch_id = ?", (batch_id,))
+    await conn.execute("DELETE FROM audit_events WHERE batch_id = ?", (batch_id,))
+    await conn.execute("DELETE FROM batch_runs WHERE id = ?", (batch_id,))
+    await conn.commit()
+    return True
+
+
 async def save_outcomes(
     conn: aiosqlite.Connection,
     *,

@@ -158,3 +158,20 @@ async def test_list_batches_endpoint(client: httpx.AsyncClient) -> None:
     assert response.status_code == 200
     batches = response.json()
     assert len(batches) >= 2
+
+
+async def test_delete_batch_endpoint(client: httpx.AsyncClient) -> None:
+    response = await client.post("/api/batches", json={"cohort_size": 20, "seed": 20})
+    batch_id = response.json()["batch_id"]
+
+    delete_response = await client.delete(f"/api/batches/{batch_id}")
+    assert delete_response.status_code == 200
+    assert delete_response.json() == {"batch_id": batch_id, "deleted": True}
+
+    get_response = await client.get(f"/api/batches/{batch_id}")
+    assert get_response.status_code == 404
+
+
+async def test_delete_batch_endpoint_404_for_unknown_id(client: httpx.AsyncClient) -> None:
+    response = await client.delete("/api/batches/does-not-exist")
+    assert response.status_code == 404

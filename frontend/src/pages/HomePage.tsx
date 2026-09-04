@@ -9,6 +9,7 @@ import {
   Layers,
   ShieldAlert,
   ShieldCheck,
+  Smartphone,
   TrendingDown,
   Zap,
 } from "lucide-react";
@@ -247,9 +248,12 @@ export function HomePage() {
 
       {/* Credibility strip */}
       <section>
-        <Card className="flex flex-col items-center gap-2 text-center sm:flex-row sm:justify-center sm:gap-4 sm:text-left">
+        <Card className="flex flex-col items-center gap-3 text-center sm:flex-row sm:justify-center sm:gap-4 sm:text-left">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-success-500/10 text-success-500">
+            <Smartphone size={18} />
+          </div>
           <p className="text-sm text-text-secondary">
-            Built by the team behind{" "}
+            We've already shipped the consumer half of this problem —{" "}
             <a
               href="https://play.google.com/store/apps/details?id=com.airolabs.autopayy"
               target="_blank"
@@ -257,10 +261,10 @@ export function HomePage() {
               className="link-underline font-semibold text-ai-400"
             >
               AutoPay
-            </a>{" "}
-            — 740+ users in 20 days on the Play Store, tracking UPI AutoPay
-            mandates from the consumer side. MandateOps solves the same
-            problem from the merchant side.
+            </a>
+            , a UPI mandate manager with 740+ users in its first 20 days on
+            the Play Store. MandateOps is the same domain expertise, pointed
+            at the merchant's side of the same broken rail.
           </p>
         </Card>
       </section>

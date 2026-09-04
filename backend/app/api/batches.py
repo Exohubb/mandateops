@@ -69,3 +69,12 @@ async def get_events(batch_id: str, strategy: str, limit: int = 200):
     return await repository.get_simulation_events(
         conn, batch_id=batch_id, strategy=strategy, limit=limit
     )
+
+
+@router.delete("/{batch_id}")
+async def delete_batch(batch_id: str):
+    conn = get_db()
+    deleted = await repository.delete_batch_run(conn, batch_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    return {"batch_id": batch_id, "deleted": True}

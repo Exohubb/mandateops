@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle2, Sparkles, Send } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Sparkles, Send, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { api } from "../lib/api";
 import { Card } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
+import { clearCache, loadFromCache, saveToCache } from "../lib/sessionCache";
 
 interface ChatMessage {
   role: "user" | "nira";
@@ -19,9 +20,29 @@ const SUGGESTED_QUESTIONS = [
   "How does MandateOps compare to naive retry overall?",
 ];
 
+// Chat history is cached in sessionStorage (not component state alone) so
+// switching to another tab and back doesn't wipe the conversation — React
+// Router unmounts this page's component tree on navigation, which would
+// otherwise reset useState back to its initial value every time.
+const CHAT_CACHE_KEY = "mandateops-copilot-chat";
+const CHAT_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
 export function CopilotPage() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(
+    () => loadFromCache<ChatMessage[]>(CHAT_CACHE_KEY) ?? []
+  );
   const [input, setInput] = useState("");
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      saveToCache(CHAT_CACHE_KEY, messages, CHAT_CACHE_TTL_MS);
+    }
+  }, [messages]);
+
+  function clearChat() {
+    setMessages([]);
+    clearCache(CHAT_CACHE_KEY);
+  }
 
   const batchesQuery = useQuery({
     queryKey: ["batches-list"],
@@ -74,18 +95,28 @@ export function CopilotPage() {
             She cannot approve, deny, or schedule a payment.
           </p>
         </div>
-        <Badge
-          className={
-            configured
-              ? "text-success-500 bg-success-500/10 border-success-500/30"
-              : "text-warning-500 bg-warning-500/10 border-warning-500/30"
-          }
-        >
-          <span className="flex items-center gap-1.5">
-            {configured ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
-            {configured ? "Gemini live" : "Fallback mode"}
-          </span>
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge
+            className={
+              configured
+                ? "text-success-500 bg-success-500/10 border-success-500/30"
+                : "text-warning-500 bg-warning-500/10 border-warning-500/30"
+            }
+          >
+            <span className="flex items-center gap-1.5">
+              {configured ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
+              {configured ? "Gemini live" : "Fallback mode"}
+            </span>
+          </Badge>
+          {messages.length > 0 && (
+            <button
+              onClick={clearChat}
+              className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-xs text-text-secondary transition-colors hover:border-danger-500/40 hover:text-danger-500"
+            >
+              <Trash2 size={12} /> Clear chat
+            </button>
+          )}
+        </div>
       </div>
 
       {!batchId && (

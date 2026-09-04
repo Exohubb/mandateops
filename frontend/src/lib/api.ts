@@ -40,6 +40,11 @@ export const api = {
 
   getBatch: (batchId: string) => request<BatchRun>(`/api/batches/${batchId}`),
 
+  deleteBatch: (batchId: string) =>
+    request<{ batch_id: string; deleted: boolean }>(`/api/batches/${batchId}`, {
+      method: "DELETE",
+    }),
+
   getOutcomes: (batchId: string, strategy: Strategy, limit = 5000) =>
     request<MandateOutcome[]>(
       `/api/batches/${batchId}/outcomes/${strategy}?limit=${limit}`
