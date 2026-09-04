@@ -202,7 +202,12 @@ async def get_simulation_events(
 
     cursor = await conn.execute(query, params)
     rows = await cursor.fetchall()
-    return [dict(r) for r in rows]
+    results = []
+    for r in rows:
+        row = dict(r)
+        row["detail"] = json.loads(row.pop("detail_json"))
+        results.append(row)
+    return results
 
 
 # --- Audit log --------------------------------------------------------------
