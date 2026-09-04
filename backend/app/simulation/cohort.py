@@ -52,12 +52,27 @@ class SyntheticCycleRecord:
     """A generated (Mandate, Cycle, initial decline text) triple, before any
     simulated time has passed. The simulation engine consumes these to seed
     a run.
+
+    Two fields power the two rehearsed failure-recovery demo scenarios from
+    BUILD-BLUEPRINT.md section 9:
+
+    - `mid_cycle_revocation_after`: if set, this mandate starts ACTIVE but
+      flips to REVOKED once its cycle has spent this many total attempts —
+      simulating a customer revoking mid-cycle with attempts still left in
+      the budget. Distinct from the already-revoked-at-start population
+      (category == MANDATE_REVOKED), which represents an already-dead
+      mandate a naive system would still retry blindly from attempt one.
+    - `notification_send_fails`: if True, every attempt to send a pre-debit
+      notification for this cycle fails, so the cycle can never legally
+      schedule an attempt at all — it should sit permanently suppressed.
     """
 
     mandate: Mandate
     cycle: Cycle
     initial_decline_text: str
     initial_decline_category: str  # DeclineCategory value
+    mid_cycle_revocation_after: int | None = None
+    notification_send_fails: bool = False
 
 
 def _weighted_bank_choice(rng: random.Random) -> str:
@@ -82,13 +97,24 @@ def _weighted_category_choice(rng: random.Random) -> DeclineCategory:
 
 
 def generate_cohort(
-    n: int = 5_000, seed: int = 2026, cycle_start: datetime | None = None
+    n: int = 5_000,
+    seed: int = 2026,
+    cycle_start: datetime | None = None,
+    *,
+    mid_cycle_revocation_rate: float = 0.02,
+    notification_failure_rate: float = 0.015,
 ) -> list[SyntheticCycleRecord]:
     """Generate `n` synthetic mandates, each with exactly one billing cycle
     that has already failed its initial attempt and is entering recovery.
 
     `cycle_start` anchors the simulated clock's "day zero" — defaults to a
     fixed date so demo runs are reproducible unless the caller overrides it.
+
+    A small, seeded slice of the ACTIVE population is flagged for the two
+    rehearsed failure-recovery scenarios (mid-cycle revocation, notification
+    send failure) so they occur naturally within the batch rather than only
+    existing as a hand-picked single example — see SyntheticCycleRecord's
+    docstring.
     """
     rng = random.Random(seed)
     start = cycle_start or datetime(2026, 1, 1, 9, 0)
@@ -138,12 +164,29 @@ def generate_cohort(
             created_at=start,
         )
 
+        # Failure-recovery scenario flags — only apply to mandates that are
+        # genuinely ACTIVE at the start (revoking an already-revoked mandate,
+        # or requiring notification-failure on an already-frozen one, would
+        # not be a meaningful scenario).
+        mid_cycle_revocation_after: int | None = None
+        notification_send_fails = False
+        if mandate_status == MandateStatus.ACTIVE:
+            if rng.random() < mid_cycle_revocation_rate:
+                # Revoke after using 2 or 3 of the 4 attempts, so there are
+                # 1-2 attempts genuinely left in the budget to demonstrably
+                # save — matching the "attempts saved" framing in the demo.
+                mid_cycle_revocation_after = rng.choice([2, 3])
+            elif rng.random() < notification_failure_rate:
+                notification_send_fails = True
+
         records.append(
             SyntheticCycleRecord(
                 mandate=mandate,
                 cycle=cycle,
                 initial_decline_text=decline_text,
                 initial_decline_category=category.value,
+                mid_cycle_revocation_after=mid_cycle_revocation_after,
+                notification_send_fails=notification_send_fails,
             )
         )
 
