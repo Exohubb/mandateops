@@ -5,14 +5,12 @@ import { api } from "../lib/api";
 import { Card, CardHeader, CardTitle } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
 import { ACTOR_LAYER_COLOR, ACTOR_LAYER_LABEL } from "../lib/format";
+import { useBatchesList } from "../lib/queries";
 
 export function AuditTrailPage() {
   const [batchId, setBatchId] = useState<string | null>(null);
 
-  const batchesQuery = useQuery({
-    queryKey: ["batches-list"],
-    queryFn: () => api.listBatches(20),
-  });
+  const batchesQuery = useBatchesList(20);
   const effectiveBatchId = batchId ?? batchesQuery.data?.[0]?.id ?? null;
 
   const auditQuery = useQuery({

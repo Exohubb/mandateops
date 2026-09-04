@@ -11,6 +11,7 @@ import { EventFeed } from "../components/dashboard/EventFeed";
 import { Card, CardHeader, CardTitle } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
 import { loadFromCache, saveToCache } from "../lib/sessionCache";
+import { invalidateBatchesList, useBatchesList } from "../lib/queries";
 
 // The currently-viewed batch id is cached so navigating away to another
 // tab and back keeps showing the same run instead of resetting to the
@@ -46,18 +47,22 @@ export function DashboardPage() {
       ]);
       return result;
     },
-    onSuccess: (data) => setBatchId(data.batch_id),
+    onSuccess: (data) => {
+      setBatchId(data.batch_id);
+      // A new batch now exists — every page's batches-list query (this
+      // one, Mandate Explorer's, Ask Nira's, Audit Trail's) must refetch
+      // rather than keep showing the pre-creation snapshot.
+      invalidateBatchesList(queryClient);
+    },
   });
 
-  const batchesListQuery = useQuery({
-    queryKey: ["batches-list"],
-    queryFn: () => api.listBatches(20),
-  });
+  const batchesListQuery = useBatchesList(20);
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.deleteBatch(id),
     onSuccess: (_data, deletedId) => {
-      queryClient.invalidateQueries({ queryKey: ["batches-list"] });
+      invalidateBatchesList(queryClient);
+      queryClient.removeQueries({ queryKey: ["batch", deletedId] });
       if (batchId === deletedId) {
         setBatchId(null);
       }

@@ -17,6 +17,7 @@ import { Card } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
 import { clearCache, loadFromCache, saveToCache } from "../lib/sessionCache";
 import { cleanAiText } from "../lib/format";
+import { useBatchesList } from "../lib/queries";
 
 interface ChatMessage {
   role: "user" | "nira";
@@ -64,10 +65,7 @@ export function CopilotPage() {
     clearCache(CHAT_CACHE_KEY);
   }
 
-  const batchesQuery = useQuery({
-    queryKey: ["batches-list"],
-    queryFn: () => api.listBatches(5),
-  });
+  const batchesQuery = useBatchesList(5);
   const batchId = batchesQuery.data?.[0]?.id ?? null;
 
   const healthQuery = useQuery({

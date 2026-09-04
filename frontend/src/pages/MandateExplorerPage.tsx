@@ -5,6 +5,7 @@ import { api } from "../lib/api";
 import { Card } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
 import { MandateDetailDrawer } from "../components/dashboard/MandateDetailDrawer";
+import { useBatchesList } from "../lib/queries";
 import {
   STATE_COLOR,
   declineCategoryLabel,
@@ -18,10 +19,7 @@ export function MandateExplorerPage() {
   const [search, setSearch] = useState("");
   const [selectedMandate, setSelectedMandate] = useState<string | null>(null);
 
-  const batchesQuery = useQuery({
-    queryKey: ["batches-list"],
-    queryFn: () => api.listBatches(20),
-  });
+  const batchesQuery = useBatchesList(20);
 
   const effectiveBatchId = batchId ?? batchesQuery.data?.[0]?.id ?? null;
 
@@ -34,6 +32,8 @@ export function MandateExplorerPage() {
     queryKey: ["batch", effectiveBatchId],
     queryFn: () => api.getBatch(effectiveBatchId!),
     enabled: !!effectiveBatchId,
+    staleTime: 0,
+    refetchOnMount: "always",
     refetchInterval: (query) => {
       const status = query.state.data?.ai_enrichment_status;
       return status === "pending" || status === "running" ? 2000 : false;
@@ -45,6 +45,11 @@ export function MandateExplorerPage() {
     queryKey: ["outcomes", effectiveBatchId, "mandateops"],
     queryFn: () => api.getOutcomes(effectiveBatchId!, "mandateops"),
     enabled: !!effectiveBatchId,
+    // Without this, navigating here right after creating a batch elsewhere
+    // could serve a stale/empty cache entry for up to 30s (the app-wide
+    // default staleTime) — the exact "I have to reload to see it" bug.
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   useEffect(() => {
