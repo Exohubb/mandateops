@@ -1,6 +1,7 @@
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { Card, CardHeader, CardTitle } from "../ui/Card";
 import { declineCategoryLabel } from "../../lib/format";
+import { CHART_COLORS, useTheme } from "../../lib/theme";
 import type { MandateOutcome } from "../../lib/types";
 
 interface DeclineDonutProps {
@@ -17,6 +18,8 @@ const COLORS: Record<string, string> = {
 };
 
 export function DeclineDonut({ outcomes }: DeclineDonutProps) {
+  const { theme } = useTheme();
+  const c = CHART_COLORS[theme];
   const counts = new Map<string, number>();
   for (const o of outcomes) {
     counts.set(o.decline_category, (counts.get(o.decline_category) ?? 0) + 1);
@@ -49,13 +52,14 @@ export function DeclineDonut({ outcomes }: DeclineDonutProps) {
             </Pie>
             <Tooltip
               contentStyle={{
-                background: "#12161f",
-                border: "1px solid #232936",
+                background: c.tooltipBg,
+                border: `1px solid ${c.tooltipBorder}`,
                 borderRadius: 8,
                 fontSize: 12,
+                color: c.textMuted,
               }}
             />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
+            <Legend wrapperStyle={{ fontSize: 11, color: c.textMuted }} />
           </PieChart>
         </ResponsiveContainer>
       </div>

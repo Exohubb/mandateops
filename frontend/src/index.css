@@ -2,47 +2,94 @@
 @import "tailwindcss";
 
 /*
-  MandateOps design system.
-  Color encodes meaning throughout the app:
+  MandateOps design system — light + dark.
+
+  Color encodes meaning throughout the app, in both themes:
   - violet/indigo  -> AI (Nira) touched this
   - emerald        -> money recovered / success
   - amber          -> deliberately paused / suppressed / frozen
   - rose           -> hard failure / blocked
   - slate          -> neutral text / structure
+
+  Theme switching works by overriding the CSS custom properties below
+  under the `.dark` class (added/removed on <html> by lib/theme.tsx).
+  Every `bg-*`, `text-*`, `border-*` utility generated from @theme picks up
+  the override automatically — no dark: variant needed at the call site
+  for the base surface/text/border tokens.
 */
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
-  --color-bg: #0b0e14;
-  --color-surface: #12161f;
-  --color-surface-hover: #171c27;
-  --color-border: #232936;
+  /* Light mode values (the default / :root values) */
+  --color-bg: #f6f7f9;
+  --color-surface: #ffffff;
+  --color-surface-hover: #f1f3f6;
+  --color-border: #e3e7ed;
+  --color-border-strong: #cbd2dc;
 
   --color-ai-50: #eef2ff;
-  --color-ai-400: #818cf8;
-  --color-ai-500: #6366f1;
-  --color-ai-600: #4f46e5;
+  --color-ai-400: #6366f1;
+  --color-ai-500: #4f46e5;
+  --color-ai-600: #4338ca;
 
-  --color-success-400: #34d399;
-  --color-success-500: #10b981;
-  --color-success-600: #059669;
+  --color-success-400: #059669;
+  --color-success-500: #059669;
+  --color-success-600: #047857;
 
-  --color-warning-400: #fbbf24;
-  --color-warning-500: #f59e0b;
-  --color-warning-600: #d97706;
+  --color-warning-400: #d97706;
+  --color-warning-500: #d97706;
+  --color-warning-600: #b45309;
 
-  --color-danger-400: #fb7185;
-  --color-danger-500: #f43f5e;
-  --color-danger-600: #e11d48;
+  --color-danger-400: #e11d48;
+  --color-danger-500: #e11d48;
+  --color-danger-600: #be123c;
 
-  --color-text-primary: #e2e8f0;
-  --color-text-secondary: #94a3b8;
-  --color-text-muted: #64748b;
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #7d8aa0;
 
   --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 1px rgba(15, 23, 42, 0.03);
+}
+
+.dark {
+  --color-bg: #0a0d13;
+  --color-surface: #11151d;
+  --color-surface-hover: #171c26;
+  --color-border: #222833;
+  --color-border-strong: #313847;
+
+  --color-ai-50: #1c1f3a;
+  --color-ai-400: #818cf8;
+  --color-ai-500: #6366f1;
+  --color-ai-600: #7c7ff5;
+
+  --color-success-400: #34d399;
+  --color-success-500: #10b981;
+  --color-success-600: #34d399;
+
+  --color-warning-400: #fbbf24;
+  --color-warning-500: #f59e0b;
+  --color-warning-600: #fbbf24;
+
+  --color-danger-400: #fb7185;
+  --color-danger-500: #f43f5e;
+  --color-danger-600: #fb7185;
+
+  --color-text-primary: #edf1f7;
+  --color-text-secondary: #a3adc2;
+  --color-text-muted: #6b7688;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.18);
 }
 
 :root {
+  color-scheme: light dark;
+}
+.dark {
   color-scheme: dark;
 }
 
@@ -63,6 +110,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 #root {
@@ -82,11 +130,11 @@ code,
   background: var(--color-bg);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-border);
+  background: var(--color-border-strong);
   border-radius: 6px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-surface-hover);
+  background: var(--color-text-muted);
 }
 
 /* Reusable card surface */
@@ -94,4 +142,26 @@ code,
   background-color: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 0.9rem;
+  box-shadow: var(--shadow-card);
+}
+
+/* Nice underline treatment for inline links/citations across prose */
+.link-underline {
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+  transition: text-decoration-color 0.15s ease;
+}
+.link-underline:hover {
+  text-decoration-color: currentColor;
+}
+
+/* Subtle grid/glow background used behind the hero section */
+.hero-grid {
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--color-border) 60%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--color-border) 60%, transparent) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, black 40%, transparent 100%);
 }

@@ -9,6 +9,7 @@ import {
   YAxis,
 } from "recharts";
 import { Card, CardHeader, CardTitle } from "../ui/Card";
+import { CHART_COLORS, useTheme } from "../../lib/theme";
 import type { StrategySummary } from "../../lib/types";
 
 interface AttemptsChartProps {
@@ -17,6 +18,8 @@ interface AttemptsChartProps {
 }
 
 export function AttemptsChart({ naive, mandateops }: AttemptsChartProps) {
+  const { theme } = useTheme();
+  const c = CHART_COLORS[theme];
   const data = [
     {
       name: "Attempts Used",
@@ -38,19 +41,20 @@ export function AttemptsChart({ naive, mandateops }: AttemptsChartProps) {
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} barGap={6}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#232936" vertical={false} />
-            <XAxis dataKey="name" stroke="#64748b" fontSize={12} tickLine={false} />
-            <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke={c.grid} vertical={false} />
+            <XAxis dataKey="name" stroke={c.axis} fontSize={12} tickLine={false} />
+            <YAxis stroke={c.axis} fontSize={12} tickLine={false} axisLine={false} />
             <Tooltip
               contentStyle={{
-                background: "#12161f",
-                border: "1px solid #232936",
+                background: c.tooltipBg,
+                border: `1px solid ${c.tooltipBorder}`,
                 borderRadius: 8,
                 fontSize: 12,
+                color: c.textMuted,
               }}
             />
-            <Legend wrapperStyle={{ fontSize: 12 }} />
-            <Bar dataKey="Naive" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+            <Legend wrapperStyle={{ fontSize: 12, color: c.textMuted }} />
+            <Bar dataKey="Naive" fill={c.axis} radius={[4, 4, 0, 0]} />
             <Bar dataKey="MandateOps" fill="#6366f1" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>

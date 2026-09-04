@@ -9,6 +9,17 @@
       name="description"
       content="A constraint-aware UPI AutoPay mandate retry sequencer built for the Razorpay Buildathon, Track 03: AI Revenue Recovery."
     />
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem("mandateops-theme");
+          var isDark =
+            stored === "dark" ||
+            (!stored && !window.matchMedia("(prefers-color-scheme: light)").matches);
+          if (isDark) document.documentElement.classList.add("dark");
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

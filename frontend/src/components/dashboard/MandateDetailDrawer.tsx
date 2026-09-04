@@ -41,7 +41,7 @@ export function MandateDetailDrawer({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 z-30 bg-black/60"
+            className="fixed inset-0 z-30 bg-black/50 backdrop-blur-sm dark:bg-black/70"
           />
           <motion.div
             initial={{ x: "100%" }}
@@ -111,7 +111,7 @@ export function MandateDetailDrawer({
                       <div
                         key={i}
                         className={`h-2 flex-1 rounded-full ${
-                          i < attemptsUsed ? "bg-ai-500" : "bg-white/10"
+                          i < attemptsUsed ? "bg-ai-500" : "bg-border-strong"
                         }`}
                       />
                     ))}
