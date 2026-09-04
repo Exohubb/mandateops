@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2, Play } from "lucide-react";
 import { Card } from "../ui/Card";
 
@@ -7,9 +7,31 @@ interface RunControlBarProps {
   isRunning: boolean;
 }
 
+const PROCESSING_STEPS = [
+  "Generating synthetic cohort…",
+  "Running naive retry strategy…",
+  "Running MandateOps strategy…",
+  "Writing audit trail…",
+];
+
 export function RunControlBar({ onRun, isRunning }: RunControlBarProps) {
   const [cohortSize, setCohortSize] = useState(50);
   const [seed, setSeed] = useState(2026);
+  const [stepIndex, setStepIndex] = useState(0);
+
+  // Cycle through the processing steps while the run is in flight, purely
+  // cosmetic — it gives the (intentionally brief) minimum run duration a
+  // sense of actual work happening rather than an unexplained pause.
+  useEffect(() => {
+    if (!isRunning) {
+      setStepIndex(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setStepIndex((i) => Math.min(i + 1, PROCESSING_STEPS.length - 1));
+    }, 700);
+    return () => clearInterval(interval);
+  }, [isRunning]);
 
   return (
     <Card className="flex flex-wrap items-center gap-4">
@@ -25,7 +47,8 @@ export function RunControlBar({ onRun, isRunning }: RunControlBarProps) {
           step={100}
           value={cohortSize}
           onChange={(e) => setCohortSize(Number(e.target.value))}
-          className="w-28 rounded-md border border-border bg-bg px-2 py-1.5 text-sm font-mono-num text-text-primary outline-none focus:border-ai-500"
+          disabled={isRunning}
+          className="w-28 rounded-md border border-border bg-bg px-2 py-1.5 text-sm font-mono-num text-text-primary outline-none focus:border-ai-500 disabled:opacity-60"
         />
       </div>
       <div className="flex items-center gap-2">
@@ -37,7 +60,8 @@ export function RunControlBar({ onRun, isRunning }: RunControlBarProps) {
           type="number"
           value={seed}
           onChange={(e) => setSeed(Number(e.target.value))}
-          className="w-24 rounded-md border border-border bg-bg px-2 py-1.5 text-sm font-mono-num text-text-primary outline-none focus:border-ai-500"
+          disabled={isRunning}
+          className="w-24 rounded-md border border-border bg-bg px-2 py-1.5 text-sm font-mono-num text-text-primary outline-none focus:border-ai-500 disabled:opacity-60"
         />
       </div>
       <button
@@ -57,6 +81,11 @@ export function RunControlBar({ onRun, isRunning }: RunControlBarProps) {
           </>
         )}
       </button>
+      {isRunning && (
+        <span className="font-mono-num text-xs text-text-muted transition-opacity">
+          {PROCESSING_STEPS[stepIndex]}
+        </span>
+      )}
     </Card>
   );
 }

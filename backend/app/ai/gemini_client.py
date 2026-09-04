@@ -11,9 +11,9 @@ No function in this file ever returns a rupee amount, a probability, an
 attempt count, or a scheduling decision — those are computed exclusively by
 app.core and app.statistical. Gemini only ever reads and writes text.
 
-Every call is: rate-limited -> cache-checked -> (on miss) sent to Gemini ->
-on ANY failure, falls back to a deterministic substitute and tags the
-result accordingly, per app.ai.fallback.
+Every call is: rate-limited -> cache-checked -> (on miss) tried against an
+ORDERED CHAIN of models -> on total failure, falls back to a deterministic
+substitute and tags the result accordingly, per app.ai.fallback.
 """
 
 from __future__ import annotations
@@ -34,6 +34,28 @@ from app.core.enums import ClassifiedBy, DeclineCategory
 
 logger = logging.getLogger("mandateops.ai")
 
+# Ordered model fallback chain, fastest/best-fit tried first. Free-tier
+# quotas and per-model overload (503) fluctuate independently of each
+# other on this API key, so trying a SINGLE fixed model means any one
+# model's bad day becomes Nira's bad day. Instead every call below walks
+# this list in order and uses the first model that actually responds:
+#   1. gemini-3.5-flash        — fastest when its daily quota has room
+#      (observed ~1-2s), but a low free-tier request-per-day cap means it
+#      can be quota-exhausted (429) after only a handful of calls.
+#   2. gemma-4-26b-a4b-it      — a Gemma model served on separate,
+#      independent infrastructure/quota from the Gemini-branded models, so
+#      it keeps working even when gemini-3.5-flash's daily cap is spent.
+#   3. gemma-4-31b-it          — a second, slightly larger Gemma model as
+#      one more independent shot before giving up on AI entirely.
+# If every model in the chain fails, the caller's own deterministic
+# fallback (see app.ai.fallback) takes over — that failure mode is
+# unchanged and still tagged transparently.
+MODEL_FALLBACK_CHAIN: list[str] = [
+    "gemini-3.5-flash",
+    "gemma-4-26b-a4b-it",
+    "gemma-4-31b-it",
+]
+
 # The google-genai SDK's generate_content call is synchronous and, left to
 # its own defaults, retries internally on 429s using the server's suggested
 # retry-after delay (which can be 30-60+ seconds on a free-tier quota hit).
@@ -41,27 +63,22 @@ logger = logging.getLogger("mandateops.ai")
 # for the whole retry duration — every other request the backend is
 # serving (including /api/health) freezes too. Two fixes, applied to every
 # call below: (1) disable the SDK's internal retries (attempts=1) so a
-# rate-limit error surfaces immediately and our own fallback takes over
-# instantly instead of waiting it out, and (2) run the call in a worker
-# thread via asyncio.to_thread so even a slow-but-successful call can't
-# block concurrent requests.
+# rate-limit error surfaces immediately and the next model in the chain is
+# tried instantly instead of waiting it out, and (2) run the call in a
+# worker thread via asyncio.to_thread so even a slow-but-successful call
+# can't block concurrent requests.
 _HTTP_OPTIONS = types.HttpOptions(
-    timeout=45_000,  # milliseconds. Gemma free-tier latency is variable
-    # (observed 2-30s), so this is generous on purpose — the async
-    # threading fix means a slow call no longer blocks the rest of the app
-    # while it waits, so there's little cost to waiting longer before
-    # falling back.
+    timeout=20_000,  # milliseconds, per model attempt. Kept moderate
+    # because a failing model (quota/overload) should be abandoned quickly
+    # in favor of the next one in the chain, not waited out.
     retry_options=types.HttpRetryOptions(attempts=1),
 )
 
-# Free-tier RPM assumptions per model family (see BUILD-BLUEPRINT.md section
-# 5.3 and the 2026 quota research) — deliberately conservative so the
-# in-process limiter never actually trips a real 429 against the account.
-_FAST_MODEL_RPM = 10
-_REASONING_MODEL_RPM = 8
-
-_fast_limiter = rpm_to_limiter(_FAST_MODEL_RPM)
-_reasoning_limiter = rpm_to_limiter(_REASONING_MODEL_RPM)
+# Free-tier RPM assumption shared across the chain — deliberately
+# conservative so the in-process limiter never actually trips a real 429
+# against the account on its own.
+_RPM_LIMIT = 10
+_rate_limiter = rpm_to_limiter(_RPM_LIMIT)
 
 _VALID_CATEGORIES = {c.value for c in DeclineCategory if c != DeclineCategory.UNCLASSIFIED}
 
@@ -80,11 +97,37 @@ def _get_client() -> genai.Client:
     return genai.Client(api_key=settings.gemini_api_key, http_options=_HTTP_OPTIONS)
 
 
-async def _generate_content(client: genai.Client, **kwargs):
-    """Run the SDK's synchronous generate_content call off the event loop,
-    so a slow or retrying call never blocks other concurrent requests.
+async def _generate_with_fallback_chain(**kwargs) -> "types.GenerateContentResponse":
+    """Try each model in MODEL_FALLBACK_CHAIN, in order, returning the
+    first successful response. `kwargs` should NOT include `model` — that
+    is supplied per-attempt from the chain. Raises the last exception seen
+    if every model in the chain fails, so the caller's existing
+    try/except-and-fallback logic is unaffected.
     """
-    return await asyncio.to_thread(client.models.generate_content, **kwargs)
+    client = _get_client()
+    await _rate_limiter.acquire()
+
+    last_exc: Exception | None = None
+    for model in MODEL_FALLBACK_CHAIN:
+        try:
+            response = await asyncio.to_thread(
+                client.models.generate_content, model=model, **kwargs
+            )
+            text = getattr(response, "text", None)
+            if not text:
+                # Empty response (e.g. a model spent its whole output
+                # budget on hidden "thinking" tokens) counts as a failure
+                # for THIS model — move on to the next one in the chain
+                # rather than returning an unusable empty result.
+                raise ValueError(f"{model} returned an empty response")
+            return response
+        except Exception as exc:  # noqa: BLE001 - try the next model in the chain
+            logger.info("Model %s failed (%s), trying next in chain", model, exc)
+            last_exc = exc
+            continue
+
+    assert last_exc is not None
+    raise last_exc
 
 
 # --- Job 1: batched decline-reason normalization --------------------------
@@ -120,7 +163,7 @@ async def classify_declines_batch(
     Returns a list parallel to `raw_texts` of (category, classified_by).
     Falls back to the deterministic keyword classifier — per-item — for any
     entry Gemini fails to return or fails on, and for the whole batch if
-    Gemini is unavailable at all.
+    every model in the chain is unavailable.
     """
     if not raw_texts:
         return []
@@ -132,9 +175,6 @@ async def classify_declines_batch(
         return [(DeclineCategory(c), ClassifiedBy.NIRA.value) for c in parsed]
 
     try:
-        client = _get_client()
-        await _fast_limiter.acquire()
-
         numbered = "\n".join(f"{i}: {text}" for i, text in enumerate(raw_texts))
         prompt = (
             "Classify each of the following bank decline messages into exactly "
@@ -143,10 +183,7 @@ async def classify_declines_batch(
             "Return a classification for every index, in the same order."
         )
 
-        settings = get_settings()
-        response = await _generate_content(
-            client,
-            model=settings.gemini_model_fast,
+        response = await _generate_with_fallback_chain(
             contents=prompt,
             config=types.GenerateContentConfig(
                 system_instruction=NIRA_SYSTEM_INSTRUCTION,
@@ -187,7 +224,7 @@ async def classify_declines_batch(
         return results
 
     except Exception as exc:  # noqa: BLE001 - any failure -> deterministic fallback
-        logger.warning("Gemini classify_declines_batch failed, using fallback: %s", exc)
+        logger.warning("classify_declines_batch: whole model chain failed, using fallback: %s", exc)
         return classify_batch_fallback(raw_texts)
 
 
@@ -230,18 +267,12 @@ async def compose_message(
     )
 
     try:
-        client = _get_client()
-        await _fast_limiter.acquire()
-        settings = get_settings()
-
         prompt = (
             f"Draft {hint}. The amount is Rs. {amount_rupees:.2f}. "
             f"Write it in {language}. Keep it under 40 words. Do not include "
             "a placeholder link or say 'click here' — just the message text."
         )
-        response = await _generate_content(
-            client,
-            model=settings.gemini_model_fast,
+        response = await _generate_with_fallback_chain(
             contents=prompt,
             config=types.GenerateContentConfig(
                 system_instruction=NIRA_SYSTEM_INSTRUCTION,
@@ -252,7 +283,7 @@ async def compose_message(
         ai_cache.set(cache_key, text)
         return text
     except Exception as exc:  # noqa: BLE001
-        logger.warning("Gemini compose_message failed, using fallback text: %s", exc)
+        logger.warning("compose_message: whole model chain failed, using fallback text: %s", exc)
         return fallback_text
 
 
@@ -276,19 +307,15 @@ async def ask_copilot(*, question: str, grounded_context: dict) -> dict:
 
     fallback_answer = {
         "answer": (
-            "Nira is temporarily unavailable (AI service unreachable or "
-            "rate-limited). The raw data you asked about is still available "
-            "in the dashboard tables below."
+            "Nira is temporarily unavailable (every AI model is unreachable "
+            "or rate-limited right now). The raw data you asked about is "
+            "still available in the dashboard tables below."
         ),
         "grounded": False,
         "used_fallback": True,
     }
 
     try:
-        client = _get_client()
-        await _reasoning_limiter.acquire()
-        settings = get_settings()
-
         prompt = (
             "Answer the user's question using ONLY the JSON data below, "
             "which describes the current batch run. Answer in 1-3 short "
@@ -298,35 +325,20 @@ async def ask_copilot(*, question: str, grounded_context: dict) -> dict:
             f"DATA:\n{context_json}\n\n"
             f"QUESTION: {question}"
         )
-        response = await _generate_content(
-            client,
-            model=settings.gemini_model_reasoning,
+        response = await _generate_with_fallback_chain(
             contents=prompt,
             config=types.GenerateContentConfig(
                 system_instruction=NIRA_SYSTEM_INSTRUCTION,
                 temperature=0.2,
-                # No max_output_tokens cap: this model sometimes spends an
-                # unpredictable number of hidden "thinking" tokens before
-                # emitting visible text, and a cap can be exhausted by
-                # thinking alone, returning an empty response. The 45s HTTP
-                # timeout (see _HTTP_OPTIONS) is the real ceiling instead —
-                # safe because the async threading fix means a slow call
-                # never blocks other requests while it runs.
             ),
         )
         text = (response.text or "").strip()
-        if not text:
-            # Response came back empty (e.g. the model spent its whole
-            # output budget on internal "thinking" tokens before emitting
-            # visible text) — treat this as a failure and fall back,
-            # rather than showing a blank message.
-            raise ValueError("Empty response text from model")
         grounded = "i don't have that in this run's data" not in text.lower()
         result = {"answer": text, "grounded": grounded, "used_fallback": False}
         ai_cache.set(cache_key, json.dumps(result))
         return result
     except Exception as exc:  # noqa: BLE001
-        logger.warning("Gemini ask_copilot failed, using fallback: %s", exc)
+        logger.warning("ask_copilot: whole model chain failed, using fallback: %s", exc)
         return fallback_answer
 
 
@@ -336,12 +348,12 @@ async def ask_copilot(*, question: str, grounded_context: dict) -> dict:
 def build_fallback_executive_summary(batch_stats: dict) -> str:
     """Pure, synchronous, zero-network deterministic summary text.
 
-    Used two ways: (1) as the fallback when the AI call fails, and (2) as
-    the instant placeholder text shown the moment a batch finishes running
-    — before the background AI-enrichment task has had a chance to produce
-    the richer version. Exposed as its own function so callers can build it
-    without ever touching the network (see app.simulation.orchestrator's
-    fast synchronous path).
+    Used two ways: (1) as the fallback when every model in the chain
+    fails, and (2) as the instant placeholder text shown the moment a
+    batch finishes running — before the background AI-enrichment task has
+    had a chance to produce the richer version. Exposed as its own
+    function so callers can build it without ever touching the network
+    (see app.simulation.orchestrator's fast synchronous path).
     """
     return (
         f"This batch processed {batch_stats.get('total_mandates', 'N/A')} mandates. "
@@ -364,31 +376,24 @@ async def executive_summary(*, batch_stats: dict) -> str:
     fallback_text = build_fallback_executive_summary(batch_stats)
 
     try:
-        client = _get_client()
-        await _reasoning_limiter.acquire()
-        settings = get_settings()
-
         prompt = (
             "Write one concise paragraph (max 90 words) summarizing this "
             "completed batch run for a finance controller's Recovery "
             "Certificate. Use only the numbers given below — do not invent "
             "any figure. Mention the comparison to naive retry-next-day if "
-            "present in the data.\n\n"
+            "present in the data. Plain sentences only, no markdown.\n\n"
             f"DATA:\n{stats_json}"
         )
-        response = await _generate_content(
-            client,
-            model=settings.gemini_model_reasoning,
+        response = await _generate_with_fallback_chain(
             contents=prompt,
             config=types.GenerateContentConfig(
                 system_instruction=NIRA_SYSTEM_INSTRUCTION,
                 temperature=0.3,
-                # No max_output_tokens cap — see note in ask_copilot above.
             ),
         )
         text = (response.text or "").strip() or fallback_text
         ai_cache.set(cache_key, text)
         return text
     except Exception as exc:  # noqa: BLE001
-        logger.warning("Gemini executive_summary failed, using fallback: %s", exc)
+        logger.warning("executive_summary: whole model chain failed, using fallback: %s", exc)
         return fallback_text

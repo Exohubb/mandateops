@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Search } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Search, Sparkles } from "lucide-react";
 import { api } from "../lib/api";
 import { Card } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
@@ -13,6 +13,7 @@ import {
 } from "../lib/format";
 
 export function MandateExplorerPage() {
+  const queryClient = useQueryClient();
   const [batchId, setBatchId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [selectedMandate, setSelectedMandate] = useState<string | null>(null);
@@ -24,11 +25,33 @@ export function MandateExplorerPage() {
 
   const effectiveBatchId = batchId ?? batchesQuery.data?.[0]?.id ?? null;
 
+  // Poll the batch record itself while Nira's background classification
+  // upgrade is still in progress, so this page's decline-reason column and
+  // classified-by labels refresh automatically once it completes — the
+  // same auto-update behavior as the Live Simulation dashboard, applied
+  // everywhere outcome data is shown, not just where the batch was run.
+  const batchQuery = useQuery({
+    queryKey: ["batch", effectiveBatchId],
+    queryFn: () => api.getBatch(effectiveBatchId!),
+    enabled: !!effectiveBatchId,
+    refetchInterval: (query) => {
+      const status = query.state.data?.ai_enrichment_status;
+      return status === "pending" || status === "running" ? 2000 : false;
+    },
+  });
+  const enrichmentStatus = batchQuery.data?.ai_enrichment_status;
+
   const outcomesQuery = useQuery({
     queryKey: ["outcomes", effectiveBatchId, "mandateops"],
     queryFn: () => api.getOutcomes(effectiveBatchId!, "mandateops"),
     enabled: !!effectiveBatchId,
   });
+
+  useEffect(() => {
+    if (enrichmentStatus === "completed") {
+      queryClient.invalidateQueries({ queryKey: ["outcomes", effectiveBatchId] });
+    }
+  }, [enrichmentStatus, effectiveBatchId, queryClient]);
 
   const filtered = useMemo(() => {
     const outcomes = outcomesQuery.data ?? [];
@@ -51,6 +74,12 @@ export function MandateExplorerPage() {
             Browse every mandate in a batch, its attempt budget, and its
             outcome.
           </p>
+          {(enrichmentStatus === "pending" || enrichmentStatus === "running") && (
+            <span className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-text-muted">
+              <Sparkles size={11} className="text-ai-400" />
+              Nira is upgrading decline classifications for this batch…
+            </span>
+          )}
         </div>
         <select
           value={effectiveBatchId ?? ""}

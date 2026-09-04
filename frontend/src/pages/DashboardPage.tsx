@@ -31,9 +31,21 @@ export function DashboardPage() {
     }
   }, [batchId]);
 
+  // The simulation math itself resolves in milliseconds, but showing a
+  // batch appear literally instantly reads as "did that even run?" rather
+  // than "a batch of mandates was just simulated." A short artificial
+  // minimum duration gives the run a perceptible, deliberate feel — long
+  // enough to register as "processing," short enough to never feel slow.
+  const MIN_RUN_DURATION_MS = 3000;
+
   const runMutation = useMutation({
-    mutationFn: ({ cohortSize, seed }: { cohortSize: number; seed: number }) =>
-      api.runBatch(cohortSize, seed),
+    mutationFn: async ({ cohortSize, seed }: { cohortSize: number; seed: number }) => {
+      const [result] = await Promise.all([
+        api.runBatch(cohortSize, seed),
+        new Promise((resolve) => setTimeout(resolve, MIN_RUN_DURATION_MS)),
+      ]);
+      return result;
+    },
     onSuccess: (data) => setBatchId(data.batch_id),
   });
 
