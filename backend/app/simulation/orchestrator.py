@@ -4,22 +4,47 @@ both simulation strategies, and persistence together into one coherent
 
 This is intentionally the only module that imports from app.db AND
 app.simulation AND app.ai at once — everything else stays layered.
+
+Speed design: the deterministic + statistical simulation math for a batch
+(cohort generation, both strategies, persistence, audit trail) is fast —
+milliseconds even for thousands of mandates. The SLOW part is the two AI
+calls (decline classification, executive summary), which can take anywhere
+from 2 to 45 seconds on the free-tier model this project uses. Making the
+user wait on the network round-trip before they can see ANY result is the
+actual "Live Simulation is slow" bug — the simulation itself was never
+slow.
+
+The fix: `run_batch` now returns as soon as the simulation math is done,
+using the deterministic fallback classifier and a deterministic summary
+sentence immediately (zero network calls on the request path). A
+background task then calls the real AI classification + executive summary
+and updates the batch/outcomes in place once ready — the frontend polls
+`ai_enrichment_status` and swaps in the richer text/labels when it flips to
+'completed', with no need to block the initial response on it.
 """
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import uuid
 
 import aiosqlite
 
-from app.ai.gemini_client import classify_declines_batch, executive_summary
-from app.core.enums import ActorLayer
+from app.ai.fallback import classify_batch_fallback
+from app.ai.gemini_client import (
+    build_fallback_executive_summary,
+    classify_declines_batch,
+    executive_summary,
+)
 from app.db import repository
+from app.db.connection import get_db
 from app.simulation.cohort import generate_cohort
-from app.simulation.ground_truth import success_probability
 from app.simulation.runner import run_mandateops, run_naive
 from app.statistical.historical_data import generate_historical_outcomes
 from app.statistical.scorer import RetrySlotScorer
+
+logger = logging.getLogger("mandateops.orchestrator")
 
 # Fixed historical training set — generated once per process, shared across
 # batch runs, since it represents "what we already know from the past" and
@@ -32,44 +57,44 @@ def get_scorer() -> RetrySlotScorer:
     return _SCORER
 
 
+def _combined_stats(cohort_size: int, naive_summary: dict, mandateops_summary: dict) -> dict:
+    return {
+        "total_mandates": cohort_size,
+        "naive_recovered_rupees": naive_summary["recovered_rupees"],
+        "recovered_rupees": mandateops_summary["recovered_rupees"],
+        "naive_recovery_rate": naive_summary["recovery_rate"],
+        "mandateops_recovery_rate": mandateops_summary["recovery_rate"],
+        "attempts_saved": mandateops_summary["total_attempts_saved"],
+    }
+
+
 async def run_batch(
     conn: aiosqlite.Connection, *, cohort_size: int = 50, seed: int = 2026
 ) -> str:
-    """Run a full batch: generate cohort, classify decline text via AI
-    (batched, with automatic fallback), run both strategies, persist
-    everything, and write the audit trail. Returns the new batch_id.
+    """Run a full batch's SIMULATION synchronously (fast, no network calls)
+    and return as soon as it's persisted. Decline text is classified with
+    the deterministic fallback rules immediately, so the response is never
+    blocked on Gemini. A background task (see `_enrich_batch_with_ai`) then
+    upgrades the classification and executive summary using the real AI
+    once it's ready, without the caller having waited for it.
     """
     batch_id = f"batch-{uuid.uuid4().hex[:10]}"
     await repository.create_batch_run(conn, batch_id=batch_id, cohort_size=cohort_size, seed=seed)
 
     records = generate_cohort(n=cohort_size, seed=seed)
 
-    # --- AI Job 1: batched decline-reason normalization -------------------
-    # Decline text comes from a small fixed vocabulary (see
-    # app.statistical.constants.DECLINE_TEXT_VARIANTS) — a 5,000-mandate
-    # cohort has only ~25 DISTINCT raw strings, repeated thousands of times.
-    # Deduplicating before calling Gemini turns this into a single small
-    # batch call (well under the 50-per-call chunk size) regardless of
-    # cohort size, instead of scaling with the number of mandates. This is
-    # the difference between ~1 Gemini call and ~100+ calls for the same
-    # batch, and it's what keeps a free-tier daily quota from being burned
-    # by a single run.
+    # Instant, zero-network classification for the fast path. Every record
+    # is honestly tagged classified_by=fallback_rule_engine at this point —
+    # the background task below is what upgrades it to Nira.
     unique_texts = sorted(set(r.initial_decline_text for r in records))
-    unique_classifications: dict[str, tuple] = {}
-    batch_group_size = 50
-    for start in range(0, len(unique_texts), batch_group_size):
-        chunk = unique_texts[start : start + batch_group_size]
-        results = await classify_declines_batch(chunk)
-        for text, result in zip(chunk, results, strict=True):
-            unique_classifications[text] = result
-
+    fallback_results = classify_batch_fallback(unique_texts)
+    classifications_by_text = dict(zip(unique_texts, fallback_results, strict=True))
     classified_by_mandate = {
-        r.mandate.id: unique_classifications[r.initial_decline_text][1] for r in records
+        r.mandate.id: classifications_by_text[r.initial_decline_text][1] for r in records
     }
     decline_texts_by_mandate = {r.mandate.id: r.initial_decline_text for r in records}
     subscriber_names_by_mandate = {r.mandate.id: r.mandate.subscriber_name for r in records}
 
-    # --- Run both strategies -----------------------------------------------
     naive_result = run_naive(records, seed=seed + 1)
     mandateops_result = run_mandateops(records, _SCORER, seed=seed + 1)
 
@@ -99,7 +124,6 @@ async def run_batch(
         conn, batch_id=batch_id, strategy="mandateops", events=mandateops_result.events
     )
 
-    # --- Audit trail: one entry per MandateOps event, hash-chained --------
     audit_entries = [
         {
             "actor_layer": e.actor_layer,
@@ -112,28 +136,87 @@ async def run_batch(
     ]
     await repository.append_audit_events(conn, batch_id=batch_id, entries=audit_entries)
 
-    # --- AI Job 4: executive summary ---------------------------------------
     naive_summary = naive_result.summary()
     mandateops_summary = mandateops_result.summary()
-    combined_stats = {
-        "total_mandates": cohort_size,
-        "naive_recovered_rupees": naive_summary["recovered_rupees"],
-        "recovered_rupees": mandateops_summary["recovered_rupees"],
-        "naive_recovery_rate": naive_summary["recovery_rate"],
-        "mandateops_recovery_rate": mandateops_summary["recovery_rate"],
-        "attempts_saved": mandateops_summary["total_attempts_saved"],
-    }
-    summary_text = await executive_summary(batch_stats=combined_stats)
+    combined_stats = _combined_stats(cohort_size, naive_summary, mandateops_summary)
+    fallback_summary_text = build_fallback_executive_summary(combined_stats)
 
     await repository.complete_batch_run(
         conn,
         batch_id=batch_id,
         naive_summary=naive_summary,
         mandateops_summary=mandateops_summary,
-        executive_summary_text=summary_text,
+        executive_summary_text=fallback_summary_text,
+    )
+
+    # Fire the slow AI enrichment in the background. Uses its own DB
+    # connection handle fetched fresh inside the task rather than closing
+    # over `conn`, since the request that triggered this may finish (and
+    # its connection borrowing pattern end) well before the task does.
+    asyncio.create_task(
+        _enrich_batch_with_ai(
+            batch_id=batch_id,
+            unique_texts=unique_texts,
+            records=records,
+            naive_summary=naive_summary,
+            mandateops_summary=mandateops_summary,
+            combined_stats=combined_stats,
+        )
     )
 
     return batch_id
+
+
+async def _enrich_batch_with_ai(
+    *,
+    batch_id: str,
+    unique_texts: list[str],
+    records,
+    naive_summary: dict,
+    mandateops_summary: dict,
+    combined_stats: dict,
+) -> None:
+    """Background task: call the real AI classifier + executive summary,
+    then update the already-saved rows in place. Runs after `run_batch` has
+    already returned a full, usable result to the caller — this only
+    upgrades quality, it never blocks the initial response.
+    """
+    conn = get_db()
+    try:
+        await repository.mark_ai_enrichment_status(conn, batch_id=batch_id, status="running")
+
+        classifications_by_text: dict[str, tuple] = {}
+        batch_group_size = 50
+        for start in range(0, len(unique_texts), batch_group_size):
+            chunk = unique_texts[start : start + batch_group_size]
+            results = await classify_declines_batch(chunk)
+            for text, result in zip(chunk, results, strict=True):
+                classifications_by_text[text] = result
+
+        classified_by_mandate = {
+            r.mandate.id: classifications_by_text[r.initial_decline_text][1] for r in records
+        }
+        decline_categories_by_mandate = {
+            r.mandate.id: classifications_by_text[r.initial_decline_text][0].value
+            for r in records
+        }
+
+        await repository.update_outcome_classifications(
+            conn,
+            batch_id=batch_id,
+            classified_by=classified_by_mandate,
+            decline_category=decline_categories_by_mandate,
+        )
+
+        summary_text = await executive_summary(batch_stats=combined_stats)
+        await repository.update_executive_summary(
+            conn, batch_id=batch_id, executive_summary_text=summary_text
+        )
+
+        await repository.mark_ai_enrichment_status(conn, batch_id=batch_id, status="completed")
+    except Exception:  # noqa: BLE001 - background task must never crash silently unlogged
+        logger.exception("AI enrichment failed for batch %s", batch_id)
+        await repository.mark_ai_enrichment_status(conn, batch_id=batch_id, status="failed")
 
 
 def heatmap_data(decline_category: str) -> list[dict]:

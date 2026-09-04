@@ -14,12 +14,15 @@ export interface StrategySummary {
   recovery_rate: number;
 }
 
+export type AiEnrichmentStatus = "pending" | "running" | "completed" | "failed";
+
 export interface BatchRun {
   id: string;
   created_at: string;
   cohort_size: number;
   seed: number;
   status: "running" | "completed";
+  ai_enrichment_status: AiEnrichmentStatus;
   naive_summary: StrategySummary | null;
   mandateops_summary: StrategySummary | null;
   executive_summary_text: string | null;

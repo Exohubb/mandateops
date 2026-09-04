@@ -333,6 +333,24 @@ async def ask_copilot(*, question: str, grounded_context: dict) -> dict:
 # --- Job 4: executive summary / recovery certificate narrative -------------
 
 
+def build_fallback_executive_summary(batch_stats: dict) -> str:
+    """Pure, synchronous, zero-network deterministic summary text.
+
+    Used two ways: (1) as the fallback when the AI call fails, and (2) as
+    the instant placeholder text shown the moment a batch finishes running
+    — before the background AI-enrichment task has had a chance to produce
+    the richer version. Exposed as its own function so callers can build it
+    without ever touching the network (see app.simulation.orchestrator's
+    fast synchronous path).
+    """
+    return (
+        f"This batch processed {batch_stats.get('total_mandates', 'N/A')} mandates. "
+        f"MandateOps recovered Rs. {batch_stats.get('recovered_rupees', 'N/A')}, "
+        f"compared to Rs. {batch_stats.get('naive_recovered_rupees', 'N/A')} under "
+        "naive next-day retry. Full figures are available in the tables above."
+    )
+
+
 async def executive_summary(*, batch_stats: dict) -> str:
     """Turn a completed batch run's raw numbers into one written paragraph
     for the Recovery Certificate. Called once per completed batch run.
@@ -343,12 +361,7 @@ async def executive_summary(*, batch_stats: dict) -> str:
     if cached is not None:
         return cached
 
-    fallback_text = (
-        f"This batch processed {batch_stats.get('total_mandates', 'N/A')} mandates. "
-        f"MandateOps recovered Rs. {batch_stats.get('recovered_rupees', 'N/A')}, "
-        f"compared to Rs. {batch_stats.get('naive_recovered_rupees', 'N/A')} under "
-        "naive next-day retry. Full figures are available in the tables above."
-    )
+    fallback_text = build_fallback_executive_summary(batch_stats)
 
     try:
         client = _get_client()

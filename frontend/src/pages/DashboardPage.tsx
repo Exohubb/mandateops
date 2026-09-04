@@ -57,6 +57,13 @@ export function DashboardPage() {
     queryFn: () => api.getBatch(batchId!),
     enabled: !!batchId,
     retry: false,
+    // While Nira's background enrichment is still running, poll every 2s
+    // so the executive summary and decline classifications upgrade in
+    // place automatically once she's done — no manual refresh needed.
+    refetchInterval: (query) => {
+      const status = query.state.data?.ai_enrichment_status;
+      return status === "pending" || status === "running" ? 2000 : false;
+    },
   });
 
   // If the cached batch id points at a run that's since been deleted (404),
@@ -67,11 +74,24 @@ export function DashboardPage() {
     }
   }, [batchQuery.isError, batchId]);
 
+  const batch = batchQuery.data;
+
   const outcomesQuery = useQuery({
     queryKey: ["outcomes", batchId, "mandateops"],
     queryFn: () => api.getOutcomes(batchId!, "mandateops"),
     enabled: !!batchId,
   });
+
+  // Once AI enrichment flips to completed, the decline-category/
+  // classified_by columns on every outcome may have changed — refetch
+  // once so the donut chart and any open mandate details reflect the
+  // upgraded (real Nira) classification instead of the fallback rules.
+  const enrichmentStatus = batch?.ai_enrichment_status;
+  useEffect(() => {
+    if (enrichmentStatus === "completed") {
+      queryClient.invalidateQueries({ queryKey: ["outcomes", batchId] });
+    }
+  }, [enrichmentStatus, batchId, queryClient]);
 
   const eventsQuery = useQuery({
     queryKey: ["events", batchId, "mandateops"],
@@ -79,8 +99,6 @@ export function DashboardPage() {
       fetch(`/api/batches/${batchId}/events/mandateops?limit=1000`).then((r) => r.json()),
     enabled: !!batchId,
   });
-
-  const batch = batchQuery.data;
 
   return (
     <div className="space-y-6 pb-12">
@@ -150,12 +168,27 @@ export function DashboardPage() {
           {batch.executive_summary_text && (
             <Card delay={0.02}>
               <CardHeader>
-                <CardTitle>Nira's Executive Summary</CardTitle>
-                <Badge className="text-ai-400 bg-ai-500/10 border-ai-500/30">
-                  <span className="flex items-center gap-1">
-                    <Sparkles size={11} /> AI-generated
-                  </span>
-                </Badge>
+                <CardTitle>Executive Summary</CardTitle>
+                {batch.ai_enrichment_status === "completed" ? (
+                  <Badge className="text-ai-400 bg-ai-500/10 border-ai-500/30">
+                    <span className="flex items-center gap-1">
+                      <Sparkles size={11} /> Written by Nira
+                    </span>
+                  </Badge>
+                ) : batch.ai_enrichment_status === "failed" ? (
+                  <Badge className="text-warning-500 bg-warning-500/10 border-warning-500/30">
+                    <span className="flex items-center gap-1">
+                      <AlertTriangle size={11} /> Fallback text
+                    </span>
+                  </Badge>
+                ) : (
+                  <Badge className="text-text-secondary bg-border/40 border-border">
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-ai-400" />
+                      Nira is upgrading this…
+                    </span>
+                  </Badge>
+                )}
               </CardHeader>
               <p className="text-sm leading-relaxed text-text-secondary">
                 {batch.executive_summary_text}

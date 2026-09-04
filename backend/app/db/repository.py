@@ -58,6 +58,58 @@ async def complete_batch_run(
     await conn.commit()
 
 
+async def mark_ai_enrichment_status(
+    conn: aiosqlite.Connection, *, batch_id: str, status: str
+) -> None:
+    """status is one of 'pending', 'running', 'completed', 'failed' — the
+    frontend polls this so it can show a "Nira is upgrading this batch..."
+    indicator without blocking on it, and swap in richer text once ready.
+    """
+    await conn.execute(
+        "UPDATE batch_runs SET ai_enrichment_status = ? WHERE id = ?",
+        (status, batch_id),
+    )
+    await conn.commit()
+
+
+async def update_executive_summary(
+    conn: aiosqlite.Connection, *, batch_id: str, executive_summary_text: str
+) -> None:
+    await conn.execute(
+        "UPDATE batch_runs SET executive_summary_text = ? WHERE id = ?",
+        (executive_summary_text, batch_id),
+    )
+    await conn.commit()
+
+
+async def update_outcome_classifications(
+    conn: aiosqlite.Connection,
+    *,
+    batch_id: str,
+    classified_by: dict[str, str],
+    decline_category: dict[str, str],
+) -> None:
+    """Upgrade the classified_by / decline_category columns for every
+    outcome row (both strategies) belonging to `batch_id`, once the
+    background AI-enrichment task has real classifications ready. Keyed by
+    mandate_id, applied across both the naive and mandateops rows for that
+    mandate since they share the same underlying decline text.
+    """
+    rows = [
+        (classified_by[mandate_id], decline_category[mandate_id], batch_id, mandate_id)
+        for mandate_id in classified_by
+    ]
+    await conn.executemany(
+        """
+        UPDATE mandate_outcomes
+        SET classified_by = ?, decline_category = ?
+        WHERE batch_id = ? AND mandate_id = ?
+        """,
+        rows,
+    )
+    await conn.commit()
+
+
 async def get_batch_run(conn: aiosqlite.Connection, batch_id: str) -> dict | None:
     cursor = await conn.execute("SELECT * FROM batch_runs WHERE id = ?", (batch_id,))
     row = await cursor.fetchone()

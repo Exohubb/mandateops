@@ -18,7 +18,8 @@ CREATE TABLE IF NOT EXISTS batch_runs (
     status TEXT NOT NULL DEFAULT 'running',
     naive_summary_json TEXT,
     mandateops_summary_json TEXT,
-    executive_summary_text TEXT
+    executive_summary_text TEXT,
+    ai_enrichment_status TEXT NOT NULL DEFAULT 'pending'
 );
 
 CREATE TABLE IF NOT EXISTS mandate_outcomes (

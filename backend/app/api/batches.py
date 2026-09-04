@@ -16,7 +16,7 @@ router = APIRouter(prefix="/api/batches", tags=["batches"])
 async def create_batch(request: RunBatchRequest) -> RunBatchResponse:
     conn = get_db()
     batch_id = await run_batch(conn, cohort_size=request.cohort_size, seed=request.seed)
-    return RunBatchResponse(batch_id=batch_id, status="completed")
+    return RunBatchResponse(batch_id=batch_id, status="completed", ai_enrichment_status="pending")
 
 
 @router.get("")

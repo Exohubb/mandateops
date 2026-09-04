@@ -13,6 +13,7 @@ class RunBatchRequest(BaseModel):
 class RunBatchResponse(BaseModel):
     batch_id: str
     status: str
+    ai_enrichment_status: str = "pending"
 
 
 class CopilotQuestionRequest(BaseModel):
