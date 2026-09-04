@@ -9,6 +9,8 @@ so the degradation is visible rather than silent.
 
 import asyncio
 
+import pytest
+
 from app.ai.fallback import classify_batch_fallback, classify_decline_text_fallback
 from app.ai.gemini_client import (
     ask_copilot,
@@ -16,7 +18,23 @@ from app.ai.gemini_client import (
     compose_message,
     executive_summary,
 )
+from app.config import Settings
 from app.core.enums import ClassifiedBy, DeclineCategory
+
+
+@pytest.fixture(autouse=True)
+def _force_no_gemini_key(monkeypatch):
+    """These tests specifically exercise the fallback path, which must be
+    exercised regardless of whether a real GEMINI_API_KEY is present in the
+    developer's local .env (it may well be, for actually running the app).
+    Forcing get_settings() to report no key here keeps this test file's
+    intent correct and fast in both cases.
+    """
+
+    def _no_key_settings() -> Settings:
+        return Settings(gemini_api_key="")
+
+    monkeypatch.setattr("app.ai.gemini_client.get_settings", _no_key_settings)
 
 
 def test_fallback_classifies_insufficient_funds() -> None:

@@ -12,6 +12,8 @@ backend/build/
 backend/dist/
 backend/*.egg-info
 backend/data/*.db
+backend/data/*.db-shm
+backend/data/*.db-wal
 backend/data/*.sqlite3
 
 # --- Node / frontend ---
