@@ -1,10 +1,10 @@
 # MandateOps — 5-Minute Demo Video Script
 
 **For: Razorpay Buildathon 2026, Track 03 — AI Revenue Recovery**
-**Runtime target: 5:00** (script is timed at a natural speaking pace, ~140 wpm)
+**Runtime target: 5:00**
 **Format:** screen recording + voiceover, presenter face optional (webcam bubble bottom-right is fine, not required)
 
-> A note on how to read this doc: left column is exactly what to **say**, right column is exactly what to **show**. Say it like you're explaining it to a smart friend who works in fintech but has never seen this specific product — not like you're reading a spec sheet out loud. Pause where marked. Everywhere else, keep moving — judges reward pace and confidence, not slow enunciation.
+> How to use this doc: the "Say" column is written the way you'd actually talk, not the way you'd write a report. Read it out loud once or twice before recording — if a line feels stiff coming out of your mouth, change the words to whatever you'd naturally say, the meaning is what matters, not matching my exact sentence. Short sentences, natural pauses (marked with `—` or `...`), and a couple of "and here's the thing" style connectors are intentional — that's what makes it sound like you're explaining something you built, not narrating a brochure.
 
 ---
 
@@ -17,17 +17,19 @@
 5. Have the **AutoPay Play Store listing open in a tab**, ready to alt-tab to for 5 seconds — don't try to load it live on camera.
 6. Do one full silent dry run with the mouse first. Your cursor should never hunt around for a button — know exactly where every click is before you narrate over it.
 
+**One more thing before you record:** don't memorize this word for word. Read it through three or four times until you know the *shape* of each section — hook, problem, solution, proof, close — then talk it, don't recite it. If you stumble on a word, just keep going in your own words. A confident "roughly seventeen percentage points better" beats a perfectly-recited number said nervously.
+
 ---
 
 ## 0:00 – 0:15 — THE HOOK
 
-**This is the only part of the video most judges give full attention to. Earn the next 4:45 in these 15 seconds.**
+**This is the only part most judges give full attention to. Earn the next 4:45 in these 15 seconds.**
 
 | Say | Show |
 |---|---|
-| "Every time someone's UPI AutoPay payment fails, the bank gives you exactly four chances to fix it. Not four *retries*. Four, total. And most companies burn through all four blindly — retrying dead subscriptions, retrying at illegal hours, retrying customers who already cancelled. We built the system that stops that. It's called MandateOps, and in the next five minutes I'll show you it recovering seventeen percentage points more revenue than the naive approach — on the exact same customers." | Start on the **MandateOps homepage hero** — the headline "UPI AutoPay is leaking revenue. MandateOps recovers it." Let it sit on screen for the first 3 seconds before you start talking, then start narrating over it. |
+| "So, quick question — did you know every failed UPI AutoPay payment only gets four shots at recovery? Not four retries. Four, total, ever. And most systems just... burn through all four blindly. Retrying subscriptions that are already cancelled. Retrying at hours the bank doesn't even allow. We built something that stops that from happening. It's called MandateOps, and by the end of this video I'll show you it actually recovering seventeen percentage points more money than the naive way — on the exact same customers, same failures." | Start on the **MandateOps homepage hero** — let the headline sit for 2-3 seconds before you start talking, then narrate over it. |
 
-**Delivery note:** say "four. Not four retries. Four, total." with a real pause after "four." That's the hook — it's a specific, surprising number, stated as a fact, not a sales line. Don't smile through this line — say it like you're briefing someone on a regulation, because you are.
+**Delivery note:** say "four. Not four retries. Four, total, ever." like you're genuinely surprised by that fact yourself — because most people are, the first time they hear it. That's what makes a hook land, not volume.
 
 ---
 
@@ -35,79 +37,84 @@
 
 | Say | Show |
 |---|---|
-| "Here's why this actually matters. UPI AutoPay approval rates dropped from fifty percent to thirty percent in under two years — even as volume grew ten times over. That's not customers choosing to leave. That's involuntary churn: a card expired, a bank had downtime, a balance was momentarily short — and nobody retried it correctly. Every one of those is recoverable revenue with zero acquisition cost. But here's the trap: NPCI caps you at one initial attempt plus three retries, inside fixed non-peak hours, with a mandatory 24-hour customer notice before you're even allowed to try. Retry in the wrong hour, or retry a mandate the customer already killed, and you didn't just fail — you burned one of only four chances you'll ever get." | Scroll down the homepage through the **four stat cards** (50%→30% approval drop, 1+3 attempt ceiling, 24-hour notice, 20-90% failure share) — pause on each one for about 2 seconds as you say the matching number. Then show the **non-peak execution windows diagram** (the green/red hour blocks) as you say "fixed non-peak hours." |
+| "Here's why this actually matters, and it's bigger than it sounds. UPI AutoPay approval rates dropped from fifty percent down to thirty percent in under two years — and that's while volume grew ten times over. So this isn't a niche edge case, it's happening at scale, right now. And the thing is, most of that isn't customers actually wanting to leave. It's what we'd call involuntary churn — a card expired, someone's bank had downtime for an hour, their balance was just a little short that day. Every one of those is money you could still get, with basically zero extra cost to go get it. But here's the trap NPCI puts you in: you get one initial attempt, plus three retries, that's it. Inside fixed hours the bank allows. And you legally have to warn the customer 24 hours before you even try. So if you retry at the wrong hour, or you keep trying a mandate the customer already cancelled — you didn't just fail that one time. You burned one of only four chances you were ever going to get." | Scroll through the **four stat cards** on the homepage (50%→30% approval drop, 1+3 attempt ceiling, 24-hour notice, 20-90% failure share) — pause on each as you hit its number. Then show the **non-peak execution windows diagram** as you mention "fixed hours the bank allows." |
 
-**Delivery note:** these are sourced, real numbers (Moneycontrol, NPCI/Economic Times, RBI, Razorpay/Livemint — all cited on-screen). Say them like facts, not marketing copy. This is where you earn credibility with a fintech-literate judge.
-
----
-
-## 0:55 – 1:25 — THE INSIGHT (why this is a scheduling problem, not a retry loop)
-
-| Say | Show |
-|---|---|
-| "So the real problem isn't 'retry the payment.' It's a constrained scheduling problem: which mandates are even eligible right now, which of the legal hours gives the best odds for *this* bank and *this* failure reason, and — critically — when do you stop and freeze the budget because the mandate is already dead. That's exactly what MandateOps does, in four fixed steps: classify the failure reason, check a hard eligibility gate, score the best legal time slot, then execute or freeze." | Show the **4-step pipeline flowchart** from the homepage (Classify → Check eligibility → Score the slot → Execute). Let each box highlight as you say its name. |
+**Delivery note:** these numbers are real and sourced on-screen (Moneycontrol, NPCI, RBI, Razorpay). Say them like you're briefing someone, not selling something — that's where the credibility comes from with a judge who actually knows payments.
 
 ---
 
-## 1:25 – 3:05 — LIVE DEMO (the core of the video)
+## 0:55 – 2:05 — THE SOLUTION: WHAT WE ACTUALLY BUILT
 
-This is the section that actually proves the thing works. Move fast, narrate what you're clicking, and let the real numbers speak.
-
-### 1:25 – 1:55 — Run a live simulation
+**This is the section the user specifically asked to expand — don't rush it. This is where you prove you understood the problem deeply enough to solve it properly, not just bolt AI onto it.**
 
 | Say | Show |
 |---|---|
-| "Let's run it live. I'm generating a fresh cohort of fifty synthetic mandates right now — same engine, same rules, real math, nothing pre-baked." *(click Run Batch)* "While that's running — about three seconds — here's what's actually happening under the hood: fifty mandates get classified, checked against the eligibility gate, scored for the best retry hour, and executed, twice — once under a naive next-day-retry strategy, once under MandateOps." | Navigate to **Live Simulation**, click **Run Batch**, and let the step-by-step processing indicator play out on camera — don't cut it, it's short and it visually proves this isn't instant/fake. |
-| "And there it is — naive retry recovered nowhere near what MandateOps did, on the identical fifty mandates." | Once it completes, hover over the **recovery rate comparison** — call out the naive % vs MandateOps % numbers directly on screen. |
+| "So once you actually sit with this problem, you realize retrying a failed payment isn't really a 'try again' button. It's a scheduling and triage problem. Think of it like an ER with only four doses of medicine per patient — you don't hand those out randomly, you check who's actually savable first, and when the best time to give it is. That's basically what we built. Every single failed mandate goes through the same four fixed steps, no exceptions, no shortcuts." | Show the **4-step pipeline flowchart** on the homepage. |
+| "Step one — classify. Banks send back messy stuff like 'INSUFFICIENT_BAL' or some cryptic reference code. Instead of a human reading every single one of those, we hand it to Nira, that's our AI layer, and she sorts it into a clean bucket — insufficient funds, bank was down, customer paused it, or customer killed the mandate completely." | Show the **decline classification** in Mandate Explorer — point at a raw decline text and its clean category tag. |
+| "Step two is where it gets interesting, and honestly this is the part that saves the most money. It's a hard eligibility check, plain code, no AI involved at all — have we used all four attempts already, is this actually a legal hour to retry in, did we send the 24-hour warning, and is the mandate even still alive. And here's the key move: if step one told us the customer already killed the mandate, we don't even bother retrying. We freeze whatever attempts are left instead of wasting them. A naive system just keeps hammering that dead mandate two or three more times for nothing — and that's exactly the waste we're eliminating." | Show a **frozen/revoked mandate** in the Mandate Detail drawer — the "frozen" badge and the reason logged. |
+| "Step three — if we're actually eligible to retry, which legal hour gives us the best shot? Not every legal hour is equal. Some banks recover better in the morning, some do better late at night, depending on why the payment failed in the first place. So we built a statistical model that looks at historical data for that specific bank and that specific failure reason, and picks the hour with the best real odds — and it's honest about it too, if there isn't enough historical data yet, it says so instead of guessing confidently." | Show the **retry-slot heatmap** or scorer output — bank x hour grid. |
+| "And step four, we just execute at that scored hour, or freeze and log exactly why, if step two said no. Every one of those four steps happens the same way, every time, for every mandate — that consistency is honestly the whole point." | Cut back to the **pipeline flowchart**, highlight step 4. |
+| "Now, the design decision I actually care about the most in this whole build — money never moves because an AI model said so. Nira only ever reads and writes text. She classifies decline reasons, she drafts the message to the customer, she answers questions about a batch run. She never decides who gets retried, when, or approves anything — that's all deterministic code she has zero access to. And if Gemini's ever down, which does happen on a free tier, there's a plain fallback classifier that just keeps the system running, clearly tagged as a fallback so nothing's hidden." | Show the **"How We Use AI" page** table mapping each decision to Deterministic / Statistical / Nira. |
 
-### 1:55 – 2:25 — Mandate Explorer (prove it, mandate by mandate)
-
-| Say | Show |
-|---|---|
-| "But I don't want you to just trust a summary number — here's every single mandate, individually, with its real decline reason and what MandateOps decided to do about it." | Navigate to **Mandate Explorer**. Click into **one mandate** that shows a clear story — ideally one that got frozen (revoked mid-cycle) and one that got recovered on a rescored hour. |
-| "This one failed with 'insufficient funds' at 11 AM — a blocked hour anyway — so MandateOps didn't even try there. It rescheduled into the next legal window, scored highest for this bank based on historical data, and recovered on attempt two instead of burning attempt two *and* three on bad timing." | Open the **Mandate Detail drawer**, point at the timeline of attempts and the scored hour. |
-
-### 2:25 – 2:55 — Ask Nira (the AI layer, live)
-
-| Say | Show |
-|---|---|
-| "Now here's Nira — the AI layer. She's not a chatbot bolted on for demo points. She only does four things: reads messy bank decline text, drafts customer messages from approved templates, answers grounded questions about a batch, and writes the executive summary. She never touches a rupee amount, a probability, or a scheduling decision — that's 100% deterministic code she has no access to. Watch — I'll ask her a real question about this exact run." *(type/click a suggested question, e.g. "Which bank has the worst recovery rate, and by how much?")* "And that's a real answer, computed live against this run's actual numbers — not a canned response." | Navigate to **Ask Nira**, click one of the **suggested question chips**, let the real response stream in on camera. Point out the "Grounded in this run's data" badge under her answer. |
-
-### 2:55 – 3:05 — Audit trail (trust, in one shot)
-
-| Say | Show |
-|---|---|
-| "And every decision — deterministic, statistical, or AI — writes to a hash-chained audit log. Tamper with one row and every hash after it breaks, verifiably. I can prove that with one click." *(click Verify Chain)* "Valid, right now, for every event in this run." | Navigate to **Audit Trail**, click **Verify Chain**, show the green "valid" result. |
+**Delivery note:** this whole section should feel like you're explaining your own thinking process out loud — "so once you sit with this problem, you realize..." — not listing features. That's the difference between sounding like a founder and sounding like a slide deck.
 
 ---
 
-## 3:05 – 3:45 — WHY THE AI IS DESIGNED THIS WAY (the differentiator)
+## 2:05 – 3:35 — LIVE DEMO (prove it actually works)
 
-This section is where you separate yourself from every other team that just "added GPT to their app." Say it plainly.
+Move fast here, narrate what you're clicking, let the real numbers do the talking.
+
+### 2:05 – 2:35 — Run a live simulation
 
 | Say | Show |
 |---|---|
-| "Here's the design decision I actually want you to remember from this whole video: money never moves because a model said so. Whether a mandate gets retried — deterministic code. Which hour to use — an inspectable statistical model, empirical Bayes, not a black box. What a messy bank decline string means, and what to say to a customer — that's Nira's entire job. And if every AI model is down — which happens on a free tier — the system falls back to a deterministic substitute automatically, tagged transparently, so a Gemini outage is never a single point of failure for revenue recovery." | Show the **"How We Use AI" page** — specifically the table mapping each decision to "Deterministic," "Statistical," or "Nira," and the **model fallback chain diagram** (gemini-3.5-flash → gemma models). |
+| "Alright, let's just run it. I'm generating fifty fresh, made-up mandates right now — same engine, same rules, nothing pre-baked for this demo." *(click Run Batch)* "While that's going — it's about three seconds — under the hood it's actually classifying all fifty, running them through that eligibility check, scoring the best hour for each, and executing. Twice, actually. Once the naive way, once the MandateOps way, on the identical fifty mandates." | Navigate to **Live Simulation**, click **Run Batch**, let the step indicator play out fully on camera. |
+| "And look at that — same exact customers, same exact failures, and MandateOps just recovered noticeably more than the naive approach did." | Point directly at the **recovery rate comparison**, call out both percentages. |
+
+### 2:35 – 3:00 — Mandate Explorer, one real story
+
+| Say | Show |
+|---|---|
+| "But I don't want you just trusting a summary number, so let's go look at one actual mandate." | Navigate to **Mandate Explorer**, open one mandate with a clear story — ideally a rescored recovery. |
+| "This one failed at 11am with insufficient funds — which, by the way, is already a blocked hour for retries — so instead of hammering that same bad hour again, the system waited for the next legal window, picked the hour with the best historical odds for this bank, and recovered on the very next try instead of burning two more attempts on bad timing." | Open the **Mandate Detail drawer**, point at the attempt timeline and the scored hour. |
+
+### 3:00 – 3:25 — Ask Nira, live
+
+| Say | Show |
+|---|---|
+| "Now here's Nira, live. She's not just a chatbot we bolted on for demo points — she only does four things, and that's it. Reads decline text, drafts customer messages, answers questions about a run, writes the summary. Watch, I'll actually ask her something real about this run." *(click a suggested question)* "And that's a real answer, computed right now off this run's actual numbers, not something canned." | Navigate to **Ask Nira**, click a suggested question, let the response stream in, point out the "Grounded in this run's data" badge. |
+
+### 3:25 – 3:35 — Audit trail, one click
+
+| Say | Show |
+|---|---|
+| "And every single one of those decisions — the classification, the freeze, the scoring, all of it — writes to a tamper-evident log. Each entry is cryptographically chained to the one before it, so if anyone ever changed a past entry, every hash after it would break. I can prove that right now, one click." *(click Verify Chain)* "Valid. Every event, right now, for this entire run." | Navigate to **Audit Trail**, click **Verify Chain**, show the green result. |
 
 ---
 
-## 3:45 – 4:15 — THE AUTOPAY CREDIBILITY BEAT (keep this SHORT — 30 seconds max)
-
-This is a garnish, not the meal. Judges are here to evaluate the buildathon submission — don't let this run long or it reads as padding.
+## 3:35 – 4:10 — WHY WE BUILT THE AI THIS WAY (the differentiator, said plainly)
 
 | Say | Show |
 |---|---|
-| "One more thing worth thirty seconds: this isn't our first time touching this exact problem. We already shipped AutoPay — a consumer-side UPI mandate manager, live on the Play Store, with over 740 users in its first 20 days. That app helps individual customers track and manage their own AutoPay mandates. MandateOps is the same domain expertise, pointed at the other side of the same broken rail — the merchant trying to recover the revenue, instead of the consumer trying to track the mandate." | Alt-tab to the **AutoPay Play Store listing** (pre-loaded, per the checklist) for about 4-5 seconds, then cut back to MandateOps. Alternatively, show the **sidebar credibility card** inside MandateOps itself — it already has the Play Store icon and this exact framing built in. |
-
-**Note on this section:** I could not verify the live Play Store listing's exact description text or current version number through automated tools — the listing didn't load for scripted fetching. Before recording, open `https://play.google.com/store/apps/details?id=com.airolabs.autopayy` yourself and confirm the "740+ users in 20 days" line still matches what's shown, and grab the current version number/install count directly from the listing if you want to cite it more precisely on screen (e.g. as a lower-third caption).
+| "If there's one thing I want you to remember from this whole video, it's this — money never moves because a model said so. What gets retried is deterministic code. The best hour to retry in is an actual inspectable statistical model, not a black box. And Nira's entire job is reading messy text and explaining things — nothing more. And if every AI model we're using goes down, which can happen on a free tier, the system just falls back to plain rules automatically, and it tells you honestly when that happened. So a Gemini outage never becomes a reason revenue stops getting recovered." | Show the **model fallback chain diagram** — gemini-3.5-flash → gemma models. |
 
 ---
 
-## 4:15 – 4:50 — THE NUMBERS, ONE MORE TIME (closing proof)
+## 4:10 – 4:35 — THE AUTOPAY CREDIBILITY BEAT (keep this to 25-30 seconds)
 
 | Say | Show |
 |---|---|
-| "So, to put a number on all of this: on a five-thousand-mandate benchmark, same seed, same synthetic ground truth — naive next-day retry recovered forty-nine point six six percent. MandateOps recovered sixty-six point seven percent. That's seventeen percentage points, over five lakh rupees more recovered, and two thousand two hundred and nineteen fewer wasted attempts spent on mandates that were already dead. This is reproducible — run it yourself right now on the live link in the description." | Show the **naive vs MandateOps comparison table** from the README/homepage — recovery rate, rupees recovered, attempts saved, all three deltas visible at once. |
+| "One quick thing before I wrap up — this isn't actually the first time we've touched this exact problem. We already shipped AutoPay, a consumer app that helps people track and manage their own UPI AutoPay mandates. It's live on the Play Store, over seven hundred and forty users in its first twenty days. That app is the consumer side of this story. MandateOps is us going after the other side of the same broken rail — the merchant trying to actually recover the revenue instead of the customer trying to keep track of their mandate." | Alt-tab briefly to the **AutoPay Play Store listing**, or show the **sidebar credibility card** inside MandateOps. |
+
+**Note:** I couldn't pull the live Play Store listing through automated tools when writing this — please open the listing yourself before recording and confirm the "740+ users in 20 days" line still matches, and grab the current version/install count if you want a more precise on-screen caption.
+
+---
+
+## 4:35 – 4:50 — THE NUMBERS, ONE MORE TIME
+
+| Say | Show |
+|---|---|
+| "So just to land the number one more time — on a five thousand mandate test, same seed, same synthetic data — naive retry recovered forty-nine point six six percent. MandateOps recovered sixty-six point seven. That's seventeen points higher, over five lakh rupees more recovered, and about twenty-two hundred fewer attempts wasted on mandates that were already dead. And this isn't a projection — it's reproducible, you can run it yourself right now on the live link below." | Show the **naive vs MandateOps comparison table**. |
 
 ---
 
@@ -115,42 +122,40 @@ This is a garnish, not the meal. Judges are here to evaluate the buildathon subm
 
 | Say | Show |
 |---|---|
-| "MandateOps: constraint-aware, audit-proof, and it uses AI exactly where AI belongs — never where money actually moves. Thanks for watching." | End on the **homepage hero** again, or a final frame with the **live URL** and **GitHub repo link** clearly visible as on-screen text. |
+| "MandateOps — constraint-aware, fully auditable, and it uses AI exactly where AI's actually good at, and nowhere near where the money actually moves. Thanks for watching." | End on the **homepage hero**, or a final frame with the **live URL** and **GitHub link** visible. |
 
-**Delivery note:** don't fade out mid-sentence. Land on "Thanks for watching" with your normal speaking energy, not a trailing-off mumble — first and last lines are what people remember from a pitch.
+**Delivery note:** land the last line at your normal talking energy — don't trail off. First and last lines are what people actually remember.
 
 ---
 
 ## On-screen text overlays to add in post (optional but recommended)
 
-Add these as lower-third captions at the matching timestamp — judges skim faster with text reinforcement, especially for numbers:
-
 | Timestamp | Overlay text |
 |---|---|
 | 0:00 | **MandateOps — AI Revenue Recovery for UPI AutoPay** |
 | 0:20 | Source: Moneycontrol, NPCI, RBI, Razorpay |
-| 1:35 | Live simulation — real computation, not pre-recorded |
-| 2:30 | Nira: reads text, drafts messages, answers questions — never moves money |
-| 3:50 | AutoPay — 740+ users in 20 days, Play Store |
-| 4:20 | +17.04pp recovery · +₹5,17,948 · 2,219 attempts saved |
+| 1:00 | The problem: retry = a scheduling problem, not a "try again" button |
+| 2:10 | Live simulation — real computation, not pre-recorded |
+| 3:05 | Nira: reads text, drafts messages, answers questions — never moves money |
+| 4:15 | AutoPay — 740+ users in 20 days, Play Store |
+| 4:40 | +17.04pp recovery · +₹5,17,948 · 2,219 attempts saved |
 | 4:55 | github.com/Exohubb/mandateops · http://100.56.247.98:8080 |
 
 ---
 
-## The 3 hooks, isolated (in case you want a shorter cutdown for socials)
+## The 3 hooks, isolated (for a shorter social cutdown)
 
-If you ever need a 30-second teaser instead of the full 5 minutes, these three lines carry the whole pitch on their own:
-
-1. "NPCI gives every failed payment exactly four chances. Not four retries — four, total. Most companies burn through all four blindly."
-2. "Money never moves because a model said so — the AI here only reads messy text and explains decisions. It never approves, denies, or schedules a payment."
-3. "Same five thousand customers, same failures — naive retry recovers fifty percent, MandateOps recovers sixty-seven. That's over five lakh rupees, measured, not projected."
+1. "Every failed UPI payment only gets four shots at recovery, total, ever. Most systems burn through all four blindly."
+2. "Money never moves because a model said so — our AI only reads messy text and explains decisions, it never approves or schedules a payment."
+3. "Same five thousand customers, same failures — naive retry recovers fifty percent, we recover sixty-seven. Measured, not projected."
 
 ---
 
 ## Common delivery mistakes to avoid
 
-- **Don't read the numbers monotone.** "Seventeen percentage points" said flat sounds like a disclaimer. Said with a half-beat of emphasis, it sounds like the headline it is.
-- **Don't apologize for the free-tier AI fallback.** Frame it as a deliberate reliability design (which it genuinely is), not a limitation you're excusing.
-- **Don't let the AutoPay section run past 30 seconds.** It's credibility, not the product being judged.
-- **Don't narrate what you're clicking before you click it** ("now I'm going to click on..."). Click first, narrate the result — it feels faster and more confident on playback.
-- **Don't end on a screen full of code.** End on the homepage or the numbers table — something a judge remembers visually.
+- **Don't read the numbers flat.** "Seventeen percentage points" said monotone sounds like a footnote. Said with a little emphasis, it's the headline.
+- **Don't apologize for the free-tier AI fallback** — it's a deliberate reliability choice, say it like one.
+- **Don't let the AutoPay beat run past 30 seconds** — it's credibility, not the thing being judged.
+- **Don't narrate the click before you make it** ("now I'm going to click...") — click first, talk about what happened, it feels faster and more confident.
+- **Don't end on a code screen.** End on the homepage or the results table — something visual that sticks.
+- **Don't recite this script word-for-word on camera.** Know the story beat by beat and say it in your own words — a natural stumble sounds more credible than a perfect robotic read.
