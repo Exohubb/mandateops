@@ -1,0 +1,36 @@
+# --- Secrets ---
+.env
+*.env
+!.env.example
+
+# --- Python / backend ---
+backend/__pycache__/
+backend/**/__pycache__/
+*.py[oc]
+backend/.venv/
+backend/build/
+backend/dist/
+backend/*.egg-info
+backend/data/*.db
+backend/data/*.sqlite3
+
+# --- Node / frontend ---
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+*.local
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# --- Editor / OS ---
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.swp
+
+# --- Scratch / temp logs used during setup ---
+_log_*.txt
+_setup_*.txt
+_cleanup_*.txt
