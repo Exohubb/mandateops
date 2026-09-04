@@ -291,9 +291,10 @@ async def ask_copilot(*, question: str, grounded_context: dict) -> dict:
 
         prompt = (
             "Answer the user's question using ONLY the JSON data below, "
-            "which describes the current batch run. If the answer is not "
-            "contained in this data, say exactly: \"I don't have that in "
-            "this run's data.\"\n\n"
+            "which describes the current batch run. Answer in 1-3 short "
+            "plain sentences, no markdown, no bullet points. If the answer "
+            "is not contained in this data, say exactly: \"I don't have "
+            "that in this run's data.\"\n\n"
             f"DATA:\n{context_json}\n\n"
             f"QUESTION: {question}"
         )
@@ -304,9 +305,22 @@ async def ask_copilot(*, question: str, grounded_context: dict) -> dict:
             config=types.GenerateContentConfig(
                 system_instruction=NIRA_SYSTEM_INSTRUCTION,
                 temperature=0.2,
+                # No max_output_tokens cap: this model sometimes spends an
+                # unpredictable number of hidden "thinking" tokens before
+                # emitting visible text, and a cap can be exhausted by
+                # thinking alone, returning an empty response. The 45s HTTP
+                # timeout (see _HTTP_OPTIONS) is the real ceiling instead —
+                # safe because the async threading fix means a slow call
+                # never blocks other requests while it runs.
             ),
         )
         text = (response.text or "").strip()
+        if not text:
+            # Response came back empty (e.g. the model spent its whole
+            # output budget on internal "thinking" tokens before emitting
+            # visible text) — treat this as a failure and fall back,
+            # rather than showing a blank message.
+            raise ValueError("Empty response text from model")
         grounded = "i don't have that in this run's data" not in text.lower()
         result = {"answer": text, "grounded": grounded, "used_fallback": False}
         ai_cache.set(cache_key, json.dumps(result))
@@ -356,6 +370,7 @@ async def executive_summary(*, batch_stats: dict) -> str:
             config=types.GenerateContentConfig(
                 system_instruction=NIRA_SYSTEM_INSTRUCTION,
                 temperature=0.3,
+                # No max_output_tokens cap — see note in ask_copilot above.
             ),
         )
         text = (response.text or "").strip() or fallback_text

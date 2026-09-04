@@ -167,18 +167,19 @@ code,
    on a light background or it just looks like a stain. */
 .cursor-glow-blob {
   border-radius: 9999px;
-  filter: blur(90px);
+  filter: blur(45px);
   will-change: transform;
   background: radial-gradient(
     circle at 35% 35%,
-    color-mix(in srgb, #3b82f6 55%, transparent) 0%,
-    color-mix(in srgb, #22c55e 45%, transparent) 45%,
-    transparent 72%
+    color-mix(in srgb, #3b82f6 60%, transparent) 0%,
+    color-mix(in srgb, #22c55e 50%, transparent) 55%,
+    transparent 78%
   );
-  opacity: 0.16;
+  opacity: 0.14;
+  transition: opacity 0.3s ease;
 }
 .dark .cursor-glow-blob {
-  opacity: 0.22;
+  opacity: 0.2;
 }
 
 /* Subtle grid background used behind the hero section. Applied to a

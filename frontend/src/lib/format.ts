@@ -28,6 +28,19 @@ export function paiseToRupees(paise: number): number {
   return paise / 100;
 }
 
+/** Nira's system prompt forbids markdown, but this is a safety net: strip
+ * stray markdown syntax (bold/italic asterisks, bullet dashes, header
+ * hashes) so a rare slip-up never renders as literal asterisks in the UI.
+ */
+export function cleanAiText(text: string): string {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/\*(.*?)\*/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^[-*]\s+/gm, "")
+    .trim();
+}
+
 // Color system: every state maps to exactly one semantic color, matching
 // index.css's palette. Used for badges, chart series, and event feed rows.
 export const STATE_COLOR: Record<string, string> = {

@@ -33,7 +33,7 @@ def get_scorer() -> RetrySlotScorer:
 
 
 async def run_batch(
-    conn: aiosqlite.Connection, *, cohort_size: int = 100, seed: int = 2026
+    conn: aiosqlite.Connection, *, cohort_size: int = 50, seed: int = 2026
 ) -> str:
     """Run a full batch: generate cohort, classify decline text via AI
     (batched, with automatic fallback), run both strategies, persist

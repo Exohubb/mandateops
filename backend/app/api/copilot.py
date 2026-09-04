@@ -50,13 +50,18 @@ async def _build_grounded_context(conn, batch_id: str) -> dict:
             breakdown[o["final_state"]] = breakdown.get(o["final_state"], 0) + 1
         return breakdown
 
+    # Key names are deliberately natural-language-ish (not raw column/
+    # variable names) so Nira can refer to them directly in her answer
+    # without needing to translate "mandateops_bank_breakdown" into
+    # "the MandateOps strategy" herself — smaller, cleaner prompt, and a
+    # more natural-reading answer with less for the model to get wrong.
     return {
         "batch_id": batch_id,
-        "naive_summary": batch.get("naive_summary"),
-        "mandateops_summary": batch.get("mandateops_summary"),
-        "mandateops_bank_breakdown": _bank_breakdown(mandateops_outcomes),
-        "naive_bank_breakdown": _bank_breakdown(naive_outcomes),
-        "mandateops_final_state_breakdown": _state_breakdown(mandateops_outcomes),
+        "naive_retry_strategy_summary": batch.get("naive_summary"),
+        "mandateops_strategy_summary": batch.get("mandateops_summary"),
+        "mandateops_strategy_recovery_by_bank": _bank_breakdown(mandateops_outcomes),
+        "naive_retry_strategy_recovery_by_bank": _bank_breakdown(naive_outcomes),
+        "mandateops_strategy_final_outcome_counts": _state_breakdown(mandateops_outcomes),
     }
 
 

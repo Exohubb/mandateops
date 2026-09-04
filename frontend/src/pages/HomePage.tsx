@@ -9,8 +9,10 @@ import {
   Layers,
   ShieldAlert,
   ShieldCheck,
-  Smartphone,
   TrendingDown,
+  UserX,
+  Users,
+  Wallet,
   Zap,
 } from "lucide-react";
 import { Card } from "../components/ui/Card";
@@ -18,6 +20,8 @@ import { ApprovalRateTrendChart } from "../components/home/ApprovalRateTrendChar
 import { RecoveryComparisonChart } from "../components/home/RecoveryComparisonChart";
 import { ConstraintDiagram } from "../components/home/ConstraintDiagram";
 import { SourcesFooter } from "../components/home/SourcesFooter";
+import { RealWorldWalkthrough } from "../components/home/RealWorldWalkthrough";
+import { PlayStoreIcon } from "../components/layout/PlayStoreIcon";
 
 const STAT_CARDS = [
   {
@@ -43,6 +47,47 @@ const STAT_CARDS = [
     value: "20–90%",
     label: "Share of subsequent debits failing on balance, bank downtime, or dead mandates",
     source: "Razorpay / Livemint",
+  },
+];
+
+const BUSINESS_PROBLEMS = [
+  {
+    icon: Wallet,
+    title: "Involuntary churn, not customer choice",
+    body: "A subscriber whose card expired or bank was briefly down didn't decide to leave — they just got caught by a failed debit nobody followed up on correctly. This is pure recoverable margin, not a sales problem.",
+  },
+  {
+    icon: UserX,
+    title: "Retries wasted on mandates that are already dead",
+    body: "A naive dunning engine retries every failure the same way, including mandates the customer has already revoked or paused. Every attempt spent on a guaranteed failure is one of only four chances gone forever.",
+  },
+  {
+    icon: Users,
+    title: "Finance teams have no audit trail for 'why'",
+    body: "When a controller asks why a specific customer wasn't recovered, most systems can't answer with anything better than a log line. There's no reproducible, tamper-evident record of the actual decision chain.",
+  },
+];
+
+const METHOD_STEPS = [
+  {
+    step: "01",
+    title: "Classify",
+    body: "Nira (AI) reads the raw bank decline text and sorts it into a fixed taxonomy — insufficient funds, bank down, mandate paused, mandate revoked.",
+  },
+  {
+    step: "02",
+    title: "Check eligibility",
+    body: "A deterministic gate checks four hard clauses in order: attempts remaining, non-peak window, notification sent, and rail-side mandate status. Any failure blocks the attempt outright.",
+  },
+  {
+    step: "03",
+    title: "Score the best slot",
+    body: "Among the legal hours that remain, an empirical-Bayes model ranks them by historical (bank × reason) success rate — with honest uncertainty on thin data.",
+  },
+  {
+    step: "04",
+    title: "Execute or freeze",
+    body: "The system either fires the scheduled attempt, or freezes the remaining budget if the mandate died mid-cycle — logging the exact reason either way.",
   },
 ];
 
@@ -141,6 +186,30 @@ export function HomePage() {
         </div>
       </section>
 
+      {/* Business problem */}
+      <section>
+        <div className="mb-5">
+          <h2 className="text-xl font-bold text-text-primary">
+            What's actually broken for the business
+          </h2>
+          <p className="mt-1 text-sm text-text-secondary">
+            Not "payments sometimes fail" — three specific, costly failure
+            modes that a generic retry-next-day approach cannot fix.
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          {BUSINESS_PROBLEMS.map(({ icon: Icon, title, body }, i) => (
+            <Card key={title} delay={i * 0.06} className="border-danger-500/20">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-danger-500/10 text-danger-500">
+                <Icon size={18} />
+              </div>
+              <h3 className="mt-3 text-sm font-semibold text-text-primary">{title}</h3>
+              <p className="mt-1.5 text-sm text-text-secondary">{body}</p>
+            </Card>
+          ))}
+        </div>
+      </section>
+
       {/* Two charts: the problem, then the result */}
       <section>
         <div className="mb-5">
@@ -213,6 +282,46 @@ export function HomePage() {
         </Card>
       </section>
 
+      {/* Method — the 4-step pipeline */}
+      <section>
+        <div className="mb-5">
+          <h2 className="text-xl font-bold text-text-primary">
+            The method, in four steps
+          </h2>
+          <p className="mt-1 text-sm text-text-secondary">
+            Every failed mandate goes through the same fixed pipeline —
+            classify, check eligibility, score, execute. No step is skipped,
+            no step is reordered.
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {METHOD_STEPS.map(({ step, title, body }, i) => (
+            <Card key={step} delay={i * 0.06}>
+              <div className="font-mono-num text-2xl font-bold text-ai-500/30">{step}</div>
+              <h3 className="mt-1 text-sm font-semibold text-text-primary">{title}</h3>
+              <p className="mt-1.5 text-sm text-text-secondary">{body}</p>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      {/* Real-world walkthrough */}
+      <section>
+        <Card delay={0.05}>
+          <div className="mb-4">
+            <h2 className="text-lg font-bold text-text-primary">
+              How it plays out in real life
+            </h2>
+            <p className="mt-1 text-sm text-text-secondary">
+              A single mandate, traced from first failure to final outcome —
+              exactly the sequence you can watch happen live on the
+              Simulation page.
+            </p>
+          </div>
+          <RealWorldWalkthrough />
+        </Card>
+      </section>
+
       {/* How it works — 4 layers */}
       <section>
         <div className="mb-5">
@@ -248,25 +357,25 @@ export function HomePage() {
 
       {/* Credibility strip */}
       <section>
-        <Card className="flex flex-col items-center gap-3 text-center sm:flex-row sm:justify-center sm:gap-4 sm:text-left">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-success-500/10 text-success-500">
-            <Smartphone size={18} />
-          </div>
-          <p className="text-sm text-text-secondary">
-            We've already shipped the consumer half of this problem —{" "}
-            <a
-              href="https://play.google.com/store/apps/details?id=com.airolabs.autopayy"
-              target="_blank"
-              rel="noreferrer"
-              className="link-underline font-semibold text-ai-400"
-            >
-              AutoPay
-            </a>
-            , a UPI mandate manager with 740+ users in its first 20 days on
-            the Play Store. MandateOps is the same domain expertise, pointed
-            at the merchant's side of the same broken rail.
-          </p>
-        </Card>
+        <a
+          href="https://play.google.com/store/apps/details?id=com.airolabs.autopayy"
+          target="_blank"
+          rel="noreferrer"
+          className="block"
+        >
+          <Card className="flex flex-col items-center gap-3 text-center transition-colors hover:border-ai-500/40 sm:flex-row sm:justify-center sm:gap-4 sm:text-left">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-surface-hover shadow-sm">
+              <PlayStoreIcon size={22} />
+            </div>
+            <p className="text-sm text-text-secondary">
+              We've already shipped the consumer half of this problem —{" "}
+              <span className="link-underline font-semibold text-ai-400">AutoPay</span>
+              , a UPI mandate manager with 740+ users in its first 20 days on
+              the Play Store. MandateOps is the same domain expertise, pointed
+              at the merchant's side of the same broken rail.
+            </p>
+          </Card>
+        </a>
       </section>
 
       {/* AI teaser */}

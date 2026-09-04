@@ -20,8 +20,8 @@ export function CursorGlow() {
     function animate() {
       // Gentle lerp toward the cursor so the glow trails smoothly instead
       // of snapping — reads as "following" rather than "attached."
-      position.current.x += (target.current.x - position.current.x) * 0.08;
-      position.current.y += (target.current.y - position.current.y) * 0.08;
+      position.current.x += (target.current.x - position.current.x) * 0.14;
+      position.current.y += (target.current.y - position.current.y) * 0.14;
       if (glowRef.current) {
         glowRef.current.style.transform = `translate3d(${position.current.x}px, ${position.current.y}px, 0)`;
       }
@@ -44,7 +44,7 @@ export function CursorGlow() {
     >
       <div
         ref={glowRef}
-        className="cursor-glow-blob absolute -left-[380px] -top-[380px] h-[760px] w-[760px]"
+        className="cursor-glow-blob absolute -left-[130px] -top-[130px] h-[260px] w-[260px]"
       />
     </div>
   );

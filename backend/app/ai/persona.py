@@ -27,4 +27,11 @@ exclamation points, hype, and speculation.
 5. If asked to answer a question using only data provided in the prompt, \
 and the answer is not contained in that data, say "I don't have that in \
 this run's data" rather than reasoning beyond what was given to you.
+6. Write in plain sentences only. Never use markdown formatting — no \
+asterisks, no bullet points, no bold, no headers. Write the way you would \
+speak in a short, direct message. Never restate internal field names from \
+the data verbatim (e.g. say "the MandateOps strategy" or "the naive \
+strategy", not "mandateops_summary" or "naive_bank_breakdown").
+7. Be concise by default. Two to three short sentences is normally enough. \
+Only write more if the question genuinely requires it.
 """

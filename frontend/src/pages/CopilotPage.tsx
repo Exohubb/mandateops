@@ -1,11 +1,22 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle2, Sparkles, Send, Trash2 } from "lucide-react";
+import {
+  AlertTriangle,
+  Banknote,
+  CheckCircle2,
+  Landmark,
+  Send,
+  ShieldQuestion,
+  Sparkles,
+  Trash2,
+  TrendingUp,
+} from "lucide-react";
 import { motion } from "framer-motion";
 import { api } from "../lib/api";
 import { Card } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
 import { clearCache, loadFromCache, saveToCache } from "../lib/sessionCache";
+import { cleanAiText } from "../lib/format";
 
 interface ChatMessage {
   role: "user" | "nira";
@@ -14,10 +25,14 @@ interface ChatMessage {
   usedFallback?: boolean;
 }
 
+// Grouped, purpose-labeled suggestions rather than one flat row — easier to
+// scan, and each icon hints at what kind of question it is before reading
+// the text.
 const SUGGESTED_QUESTIONS = [
-  "Which bank has the worst recovery rate?",
-  "How many attempts were saved by the revocation freeze?",
-  "How does MandateOps compare to naive retry overall?",
+  { icon: Landmark, text: "Which bank has the worst recovery rate, and by how much?" },
+  { icon: ShieldQuestion, text: "How many attempts were saved by the revocation freeze?" },
+  { icon: TrendingUp, text: "How does MandateOps compare to naive retry overall?" },
+  { icon: Banknote, text: "Which decline reason cost the most in unrecovered rupees?" },
 ];
 
 // Chat history is cached in sessionStorage (not component state alone) so
@@ -32,11 +47,16 @@ export function CopilotPage() {
     () => loadFromCache<ChatMessage[]>(CHAT_CACHE_KEY) ?? []
   );
   const [input, setInput] = useState("");
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (messages.length > 0) {
       saveToCache(CHAT_CACHE_KEY, messages, CHAT_CACHE_TTL_MS);
     }
+  }, [messages]);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
   function clearChat() {
@@ -64,7 +84,7 @@ export function CopilotPage() {
         ...prev,
         {
           role: "nira",
-          text: data.answer,
+          text: cleanAiText(data.answer),
           grounded: data.grounded,
           usedFallback: data.used_fallback,
         },
@@ -128,55 +148,70 @@ export function CopilotPage() {
 
       {batchId && (
         <>
-          <div className="flex flex-wrap gap-2">
-            {SUGGESTED_QUESTIONS.map((q) => (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {SUGGESTED_QUESTIONS.map(({ icon: Icon, text }) => (
               <button
-                key={q}
-                onClick={() => send(q)}
-                className="rounded-full border border-ai-500/30 bg-ai-500/10 px-3 py-1.5 text-xs font-medium text-ai-400 transition-colors hover:bg-ai-500/20"
+                key={text}
+                onClick={() => send(text)}
+                disabled={askMutation.isPending}
+                className="flex items-center gap-2.5 rounded-lg border border-ai-500/25 bg-ai-500/5 px-3 py-2.5 text-left text-xs font-medium text-ai-400 transition-colors hover:bg-ai-500/15 disabled:opacity-50"
               >
-                {q}
+                <Icon size={14} className="shrink-0" />
+                {text}
               </button>
             ))}
           </div>
 
-          <Card className="flex h-[480px] flex-col">
-            <div className="flex-1 space-y-3 overflow-y-auto pr-1">
+          <Card className="flex h-[520px] flex-col">
+            <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto px-1 py-1">
               {messages.length === 0 && (
                 <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-text-muted">
-                  <Sparkles size={28} className="text-ai-400" />
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-ai-500/10 text-ai-400">
+                    <Sparkles size={22} />
+                  </div>
                   <p className="text-sm">Ask Nira anything about this batch run.</p>
+                  <p className="text-xs text-text-muted">
+                    Try one of the suggestions above to get started.
+                  </p>
                 </div>
               )}
               {messages.map((m, i) => (
                 <motion.div
                   key={i}
-                  initial={{ opacity: 0, y: 6 }}
+                  initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+                  transition={{ duration: 0.2 }}
+                  className={`flex items-start gap-2.5 ${
+                    m.role === "user" ? "flex-row-reverse" : ""
+                  }`}
                 >
+                  {m.role === "nira" && (
+                    <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ai-500/15 text-ai-400">
+                      <Sparkles size={13} />
+                    </div>
+                  )}
                   <div
-                    className={`max-w-[80%] rounded-xl px-4 py-2.5 text-sm ${
+                    className={`max-w-[78%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                       m.role === "user"
-                        ? "bg-ai-500 text-white"
-                        : "border border-border bg-bg text-text-secondary"
+                        ? "rounded-tr-sm bg-ai-500 text-white"
+                        : "rounded-tl-sm border border-border bg-bg text-text-primary"
                     }`}
                   >
-                    {m.text}
+                    <p className="whitespace-pre-wrap">{m.text}</p>
                     {m.role === "nira" && (
                       <div
-                        className={`mt-1.5 flex items-center gap-1 text-[11px] ${
+                        className={`mt-2 flex items-center gap-1 border-t pt-1.5 text-[11px] ${
                           m.usedFallback
-                            ? "text-warning-500"
+                            ? "border-warning-500/20 text-warning-500"
                             : m.grounded
-                              ? "text-success-500"
-                              : "text-text-muted"
+                              ? "border-success-500/20 text-success-500"
+                              : "border-border text-text-muted"
                         }`}
                       >
                         {m.usedFallback ? (
                           <>
                             <AlertTriangle size={11} />
-                            Fallback — Gemini unavailable or rate-limited, no AI call made
+                            Fallback — Gemini unavailable or rate-limited
                           </>
                         ) : m.grounded ? (
                           <>
@@ -192,7 +227,16 @@ export function CopilotPage() {
                 </motion.div>
               ))}
               {askMutation.isPending && (
-                <div className="text-xs text-text-muted">Nira is thinking…</div>
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ai-500/15 text-ai-400">
+                    <Sparkles size={13} />
+                  </div>
+                  <div className="flex items-center gap-1 rounded-2xl rounded-tl-sm border border-border bg-bg px-4 py-3">
+                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ai-400 [animation-delay:-0.3s]" />
+                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ai-400 [animation-delay:-0.15s]" />
+                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ai-400" />
+                  </div>
+                </div>
               )}
             </div>
 
@@ -207,7 +251,7 @@ export function CopilotPage() {
               <button
                 onClick={() => send(input)}
                 disabled={askMutation.isPending}
-                className="flex h-9 w-9 items-center justify-center rounded-lg bg-ai-500 text-white transition-colors hover:bg-ai-600 disabled:opacity-60"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-ai-500 text-white transition-colors hover:bg-ai-600 disabled:opacity-60"
               >
                 <Send size={16} />
               </button>
