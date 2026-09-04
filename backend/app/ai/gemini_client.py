@@ -18,6 +18,7 @@ result accordingly, per app.ai.fallback.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 
@@ -32,6 +33,22 @@ from app.config import get_settings
 from app.core.enums import ClassifiedBy, DeclineCategory
 
 logger = logging.getLogger("mandateops.ai")
+
+# The google-genai SDK's generate_content call is synchronous and, left to
+# its own defaults, retries internally on 429s using the server's suggested
+# retry-after delay (which can be 30-60+ seconds on a free-tier quota hit).
+# Running that directly inside an `async def` blocks the entire event loop
+# for the whole retry duration — every other request the backend is
+# serving (including /api/health) freezes too. Two fixes, applied to every
+# call below: (1) disable the SDK's internal retries (attempts=1) so a
+# rate-limit error surfaces immediately and our own fallback takes over
+# instantly instead of waiting it out, and (2) run the call in a worker
+# thread via asyncio.to_thread so even a slow-but-successful call can't
+# block concurrent requests.
+_HTTP_OPTIONS = types.HttpOptions(
+    timeout=15_000,  # milliseconds
+    retry_options=types.HttpRetryOptions(attempts=1),
+)
 
 # Free-tier RPM assumptions per model family (see BUILD-BLUEPRINT.md section
 # 5.3 and the 2026 quota research) — deliberately conservative so the
@@ -56,7 +73,14 @@ def _get_client() -> genai.Client:
     settings = get_settings()
     if not settings.gemini_configured:
         raise GeminiUnavailableError("GEMINI_API_KEY not configured")
-    return genai.Client(api_key=settings.gemini_api_key)
+    return genai.Client(api_key=settings.gemini_api_key, http_options=_HTTP_OPTIONS)
+
+
+async def _generate_content(client: genai.Client, **kwargs):
+    """Run the SDK's synchronous generate_content call off the event loop,
+    so a slow or retrying call never blocks other concurrent requests.
+    """
+    return await asyncio.to_thread(client.models.generate_content, **kwargs)
 
 
 # --- Job 1: batched decline-reason normalization --------------------------
@@ -116,7 +140,8 @@ async def classify_declines_batch(
         )
 
         settings = get_settings()
-        response = client.models.generate_content(
+        response = await _generate_content(
+            client,
             model=settings.gemini_model_fast,
             contents=prompt,
             config=types.GenerateContentConfig(
@@ -210,7 +235,8 @@ async def compose_message(
             f"Write it in {language}. Keep it under 40 words. Do not include "
             "a placeholder link or say 'click here' — just the message text."
         )
-        response = client.models.generate_content(
+        response = await _generate_content(
+            client,
             model=settings.gemini_model_fast,
             contents=prompt,
             config=types.GenerateContentConfig(
@@ -267,7 +293,8 @@ async def ask_copilot(*, question: str, grounded_context: dict) -> dict:
             f"DATA:\n{context_json}\n\n"
             f"QUESTION: {question}"
         )
-        response = client.models.generate_content(
+        response = await _generate_content(
+            client,
             model=settings.gemini_model_reasoning,
             contents=prompt,
             config=types.GenerateContentConfig(
@@ -318,7 +345,8 @@ async def executive_summary(*, batch_stats: dict) -> str:
             "present in the data.\n\n"
             f"DATA:\n{stats_json}"
         )
-        response = client.models.generate_content(
+        response = await _generate_content(
+            client,
             model=settings.gemini_model_reasoning,
             contents=prompt,
             config=types.GenerateContentConfig(

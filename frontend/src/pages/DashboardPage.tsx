@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Sparkles } from "lucide-react";
 import { api } from "../lib/api";
 import { ComparisonHero } from "../components/dashboard/ComparisonHero";
 import { AttemptsChart } from "../components/dashboard/AttemptsChart";
@@ -9,6 +9,7 @@ import { RetryHeatmap } from "../components/dashboard/RetryHeatmap";
 import { RunControlBar } from "../components/dashboard/RunControlBar";
 import { EventFeed } from "../components/dashboard/EventFeed";
 import { Card, CardHeader, CardTitle } from "../components/ui/Card";
+import { Badge } from "../components/ui/Badge";
 
 export function DashboardPage() {
   const [batchId, setBatchId] = useState<string | null>(null);
@@ -73,6 +74,11 @@ export function DashboardPage() {
             <Card delay={0.02}>
               <CardHeader>
                 <CardTitle>Nira's Executive Summary</CardTitle>
+                <Badge className="text-ai-400 bg-ai-500/10 border-ai-500/30">
+                  <span className="flex items-center gap-1">
+                    <Sparkles size={11} /> AI-generated
+                  </span>
+                </Badge>
               </CardHeader>
               <p className="text-sm leading-relaxed text-text-secondary">
                 {batch.executive_summary_text}

@@ -29,21 +29,23 @@
   --color-border-strong: #cbd2dc;
 
   --color-ai-50: #eef2ff;
-  --color-ai-400: #6366f1;
+  --color-ai-400: #5b21b6;
   --color-ai-500: #4f46e5;
   --color-ai-600: #4338ca;
 
-  --color-success-400: #059669;
-  --color-success-500: #059669;
-  --color-success-600: #047857;
+  /* Material-style vivid green / orange / red, used consistently for
+     success / warning / danger states across every page. */
+  --color-success-400: #16a34a;
+  --color-success-500: #16a34a;
+  --color-success-600: #15803d;
 
-  --color-warning-400: #d97706;
-  --color-warning-500: #d97706;
-  --color-warning-600: #b45309;
+  --color-warning-400: #ea580c;
+  --color-warning-500: #ea580c;
+  --color-warning-600: #c2410c;
 
-  --color-danger-400: #e11d48;
-  --color-danger-500: #e11d48;
-  --color-danger-600: #be123c;
+  --color-danger-400: #dc2626;
+  --color-danger-500: #dc2626;
+  --color-danger-600: #b91c1c;
 
   --color-text-primary: #0f172a;
   --color-text-secondary: #475569;
@@ -63,21 +65,21 @@
   --color-border-strong: #313847;
 
   --color-ai-50: #1c1f3a;
-  --color-ai-400: #818cf8;
-  --color-ai-500: #6366f1;
-  --color-ai-600: #7c7ff5;
+  --color-ai-400: #a78bfa;
+  --color-ai-500: #8b5cf6;
+  --color-ai-600: #a78bfa;
 
-  --color-success-400: #34d399;
-  --color-success-500: #10b981;
-  --color-success-600: #34d399;
+  --color-success-400: #4ade80;
+  --color-success-500: #22c55e;
+  --color-success-600: #4ade80;
 
-  --color-warning-400: #fbbf24;
-  --color-warning-500: #f59e0b;
-  --color-warning-600: #fbbf24;
+  --color-warning-400: #fb923c;
+  --color-warning-500: #f97316;
+  --color-warning-600: #fb923c;
 
-  --color-danger-400: #fb7185;
-  --color-danger-500: #f43f5e;
-  --color-danger-600: #fb7185;
+  --color-danger-400: #f87171;
+  --color-danger-500: #ef4444;
+  --color-danger-600: #f87171;
 
   --color-text-primary: #edf1f7;
   --color-text-secondary: #a3adc2;
@@ -137,12 +139,13 @@ code,
   background: var(--color-text-muted);
 }
 
-/* Reusable card surface */
+/* Reusable card surface — Material-style rounded corners + soft elevation */
 .card {
   background-color: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 0.9rem;
+  border-radius: 1rem;
   box-shadow: var(--shadow-card);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 /* Nice underline treatment for inline links/citations across prose */
@@ -157,11 +160,23 @@ code,
   text-decoration-color: currentColor;
 }
 
-/* Subtle grid/glow background used behind the hero section */
+/* Subtle grid background used behind the hero section. Applied to a
+   ::before pseudo-element rather than the section itself, so the fade
+   mask only affects the decorative grid layer — never the title text
+   sitting in front of it (that was previously washing out the H1 in
+   light mode). */
 .hero-grid {
+  position: relative;
+  isolation: isolate;
+}
+.hero-grid::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
   background-image:
-    linear-gradient(to right, color-mix(in srgb, var(--color-border) 60%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in srgb, var(--color-border) 60%, transparent) 1px, transparent 1px);
+    linear-gradient(to right, color-mix(in srgb, var(--color-border) 70%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--color-border) 70%, transparent) 1px, transparent 1px);
   background-size: 42px 42px;
   mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, black 40%, transparent 100%);
 }

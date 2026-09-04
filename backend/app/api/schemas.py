@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 
 class RunBatchRequest(BaseModel):
-    cohort_size: int = Field(default=5000, ge=10, le=20000)
+    cohort_size: int = Field(default=100, ge=10, le=20000)
     seed: int = Field(default=2026)
 
 

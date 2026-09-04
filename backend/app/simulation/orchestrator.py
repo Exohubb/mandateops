@@ -33,7 +33,7 @@ def get_scorer() -> RetrySlotScorer:
 
 
 async def run_batch(
-    conn: aiosqlite.Connection, *, cohort_size: int = 5000, seed: int = 2026
+    conn: aiosqlite.Connection, *, cohort_size: int = 100, seed: int = 2026
 ) -> str:
     """Run a full batch: generate cohort, classify decline text via AI
     (batched, with automatic fallback), run both strategies, persist
@@ -45,17 +45,26 @@ async def run_batch(
     records = generate_cohort(n=cohort_size, seed=seed)
 
     # --- AI Job 1: batched decline-reason normalization -------------------
-    # Batched in groups of 50 per BUILD-BLUEPRINT.md section 5.3, so a
-    # 5,000-record cohort costs ~100 Gemini calls, not 5,000.
-    raw_texts = [r.initial_decline_text for r in records]
-    classified: list[tuple] = []
+    # Decline text comes from a small fixed vocabulary (see
+    # app.statistical.constants.DECLINE_TEXT_VARIANTS) — a 5,000-mandate
+    # cohort has only ~25 DISTINCT raw strings, repeated thousands of times.
+    # Deduplicating before calling Gemini turns this into a single small
+    # batch call (well under the 50-per-call chunk size) regardless of
+    # cohort size, instead of scaling with the number of mandates. This is
+    # the difference between ~1 Gemini call and ~100+ calls for the same
+    # batch, and it's what keeps a free-tier daily quota from being burned
+    # by a single run.
+    unique_texts = sorted(set(r.initial_decline_text for r in records))
+    unique_classifications: dict[str, tuple] = {}
     batch_group_size = 50
-    for start in range(0, len(raw_texts), batch_group_size):
-        chunk = raw_texts[start : start + batch_group_size]
-        classified.extend(await classify_declines_batch(chunk))
+    for start in range(0, len(unique_texts), batch_group_size):
+        chunk = unique_texts[start : start + batch_group_size]
+        results = await classify_declines_batch(chunk)
+        for text, result in zip(chunk, results, strict=True):
+            unique_classifications[text] = result
 
     classified_by_mandate = {
-        r.mandate.id: classified[i][1] for i, r in enumerate(records)
+        r.mandate.id: unique_classifications[r.initial_decline_text][1] for r in records
     }
     decline_texts_by_mandate = {r.mandate.id: r.initial_decline_text for r in records}
     subscriber_names_by_mandate = {r.mandate.id: r.mandate.subscriber_name for r in records}

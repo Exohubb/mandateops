@@ -8,7 +8,7 @@ interface RunControlBarProps {
 }
 
 export function RunControlBar({ onRun, isRunning }: RunControlBarProps) {
-  const [cohortSize, setCohortSize] = useState(5000);
+  const [cohortSize, setCohortSize] = useState(100);
   const [seed, setSeed] = useState(2026);
 
   return (
