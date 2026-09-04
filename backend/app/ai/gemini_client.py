@@ -46,7 +46,11 @@ logger = logging.getLogger("mandateops.ai")
 # thread via asyncio.to_thread so even a slow-but-successful call can't
 # block concurrent requests.
 _HTTP_OPTIONS = types.HttpOptions(
-    timeout=15_000,  # milliseconds
+    timeout=45_000,  # milliseconds. Gemma free-tier latency is variable
+    # (observed 2-30s), so this is generous on purpose — the async
+    # threading fix means a slow call no longer blocks the rest of the app
+    # while it waits, so there's little cost to waiting longer before
+    # falling back.
     retry_options=types.HttpRetryOptions(attempts=1),
 )
 

@@ -19,7 +19,7 @@ const AI_JOBS = [
   {
     icon: ScrollText,
     title: "Job 1 — Decline-reason normalizer",
-    model: "gemini-3.5-flash-lite",
+    model: "gemma-4-31b-it",
     volume: "Batched · deduplicated · cached",
     input: '"txn declined - insufficient bal"',
     output: "insufficient_funds",
@@ -28,7 +28,7 @@ const AI_JOBS = [
   {
     icon: MessageSquareText,
     title: "Job 2 — Customer message composer",
-    model: "gemini-3.5-flash-lite",
+    model: "gemma-4-31b-it",
     volume: "On-demand · cached by (reason, language)",
     input: "template: recovery_link, amount: ₹499",
     output: '"Your payment of ₹499 didn\'t go through — please use the link below to keep your subscription active."',
@@ -37,7 +37,7 @@ const AI_JOBS = [
   {
     icon: Sparkles,
     title: "Job 3 — Ask Nira (grounded copilot)",
-    model: "gemini-3.5-flash-lite",
+    model: "gemma-4-31b-it",
     volume: "Low volume · per user question",
     input: '"Which bank has the worst recovery rate?"',
     output: "Answered strictly from this batch's own aggregates, injected into the prompt as the only source of truth",
@@ -46,7 +46,7 @@ const AI_JOBS = [
   {
     icon: TrendingUp,
     title: "Job 4 — Executive summary",
-    model: "gemini-3.5-flash-lite",
+    model: "gemma-4-31b-it",
     volume: "Once per completed batch run",
     input: "Batch totals: recovered ₹, recovery rate, attempts saved",
     output: '"This batch recovered ₹61,003 vs ₹50,323 under naive retry — a 15pp higher recovery rate, with 56 attempts saved from dead mandates."',
@@ -228,16 +228,18 @@ export function AiJudgmentPage() {
             Why you might see the fallback fire often in this demo
           </div>
           <p className="mt-1 text-sm text-text-secondary">
-            This build runs on Gemini's free tier, which caps requests per
-            day per model — often in the low tens to low hundreds, depending
-            on the model. A single un-deduplicated batch can burn that in
-            seconds. MandateOps mitigates this two ways: it deduplicates
-            decline text before ever calling Gemini (turning thousands of
-            mandates into a handful of distinct API calls), and it caches
-            every AI result by content hash so identical input never calls
-            Gemini twice. When the quota is exhausted anyway, the fallback
-            takes over automatically — which is itself the AI-layer failure-
-            recovery story, not a bug to hide.
+            This build runs on the Gemini API's free tier, which caps
+            requests per day per model — often in the low tens to low
+            hundreds for the flagship Gemini models. MandateOps mitigates
+            this three ways: it deduplicates decline text before ever
+            calling the model (turning thousands of mandates into a handful
+            of distinct calls), it caches every AI result by content hash so
+            identical input never calls the API twice, and it runs on the
+            Gemma model family — served on the same free API key but on
+            separate, far less congested infrastructure than the flagship
+            Gemini models. When a quota or outage happens anyway, the
+            fallback takes over automatically — which is itself the AI-layer
+            failure-recovery story, not a bug to hide.
           </p>
         </div>
       </Card>

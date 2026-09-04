@@ -19,8 +19,8 @@ class Settings(BaseSettings):
     )
 
     gemini_api_key: str = ""
-    gemini_model_fast: str = "gemini-3.5-flash-lite"
-    gemini_model_reasoning: str = "gemini-3.5-flash-lite"
+    gemini_model_fast: str = "gemma-4-31b-it"
+    gemini_model_reasoning: str = "gemma-4-31b-it"
 
     backend_host: str = "0.0.0.0"
     backend_port: int = 8000
