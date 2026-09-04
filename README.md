@@ -15,6 +15,10 @@ NPCI gives every failed mandate exactly **one initial attempt plus three retries
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6?style=flat-square&logo=typescript&logoColor=white)](#tech-stack)
 [![License](https://img.shields.io/badge/license-MIT-8b5cf6?style=flat-square)](#license)
 
+### 🔗 [**Live demo — http://100.56.247.98:8080**](http://100.56.247.98:8080)
+
+Deployed on an AWS EC2 instance (2 vCPU / 4GB RAM), served by FastAPI + Gunicorn behind systemd, running the real Gemini-backed AI layer. No login required — click **Run Batch** on the dashboard.
+
 </div>
 
 ---
@@ -575,6 +579,8 @@ def test_missing_notification_suppresses_scheduling():
 ---
 
 ## Deployment
+
+**Live URL: [http://100.56.247.98:8080](http://100.56.247.98:8080)**
 
 Single AWS EC2 instance, one systemd-managed Uvicorn process serving both the API and the built frontend on one port — no Docker, no Postgres, no Redis, no separate reverse-proxy config.
 
