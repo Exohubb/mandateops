@@ -15,7 +15,7 @@ NPCI gives every failed mandate exactly **one initial attempt plus three retries
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6?style=flat-square&logo=typescript&logoColor=white)](#tech-stack)
 [![License](https://img.shields.io/badge/license-MIT-8b5cf6?style=flat-square)](#license)
 
-### 🔗 [**Live demo — http://100.56.247.98:8080**](http://100.56.247.98:8080)
+### 🔗 [**Live demo — http://100.56.247.98:8080**](http://100.56.247.98:8080) · 🎥 [**5-min video walkthrough**](https://www.loom.com/share/c1fd665ac9544f89b23c59439829c98c)
 
 Deployed on an AWS EC2 instance (2 vCPU / 4GB RAM), served by FastAPI + Gunicorn behind systemd, running the real Gemini-backed AI layer. No login required — click **Run Batch** on the dashboard.
 
